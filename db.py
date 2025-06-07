@@ -1,6 +1,7 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
+import psycopg2
 import os
 
 DB_URL = os.getenv("DATABASE_URL")  # Render 上设置的 DATABASE_URL
@@ -93,6 +94,18 @@ def get_win_records(user_id=None):
                 query += f" WHERE user_id = {user_id}"
             cur.execute(query)
             return cur.fetchall()
+
+def get_user_bets(user_id):
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"), cursor_factory=RealDictCursor)
+    with conn.cursor() as cur:
+        cur.execute("SELECT date, market, number, bet_type, amount, box_type FROM bets WHERE user_id = %s ORDER BY date DESC", (user_id,))
+        return cur.fetchall()
+
+def get_all_commissions():
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"), cursor_factory=RealDictCursor)
+    with conn.cursor() as cur:
+        cur.execute("SELECT username, SUM(commission) as total FROM commissions GROUP BY username ORDER BY total DESC")
+        return cur.fetchall()
 
 # 赔率表（简化版，可拆出去）
 def get_payout(bet_type, market, prize_type, box_type, combo_count=24):
