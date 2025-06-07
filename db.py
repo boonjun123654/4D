@@ -295,4 +295,20 @@ def get_win_history(user_id):
     conn.close()
     return rows
 
+def save_win_numbers(market, win_date, prize_dict):
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    cur = conn.cursor()
+
+    # 遍历所有奖项写入数据库
+    for prize_type, numbers in prize_dict.items():
+        for num in numbers:
+            cur.execute("""
+                INSERT INTO results (market, win_date, prize_type, number)
+                VALUES (%s, %s, %s, %s)
+            """, (market, win_date, prize_type, num))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
 
