@@ -1,64 +1,63 @@
+import re
 from datetime import datetime
 
-def parse_bet_input(text, user_id, username):
-    lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+def parse_bet_message(message_text, user_id):
+    """
+    输入：
+    07/06/2025
+    MKT
+    1234-1B 1S ibox
+    2234-2B 2C
+    输出：
+    List[dict] → 每一笔下注记录
+    """
+
+    lines = message_text.strip().splitlines()
     if len(lines) < 3:
-        raise ValueError("请输入格式：日期 + 市场 + 下注内容")
+        return []
 
-    date_line = lines[0]
-    market_line = lines[1].upper()
-    content_lines = lines[2:]
+    date_line = lines[0].strip()
+    market_line = lines[1].strip().upper()
+    bet_lines = lines[2:]
 
-    # 日期支持多天，用 & 分隔
-    date_list = [datetime.strptime(d, "%d/%m/%Y").date() for d in date_line.split("&")]
+    # 多日期支持（07/06/2025 & 08/06/2025）
+    dates = [d.strip() for d in date_line.split("&")]
+    markets = list(market_line)
 
-    # 市场支持多个，例如 MKT = M, K, T
-    market_map = {
-        "M": "Magnum",
-        "K": "Damacai",
-        "T": "Toto",
-        "S": "Singapore",
-        "H": "GrandDragon",
-        "L": "9Lotto"
-    }
-    market_codes = list(market_line)
-    for code in market_codes:
-        if code not in market_map:
-            raise ValueError(f"未知市场代码：{code}")
+    bets = []
 
-    bet_entries = []
-    for line in content_lines:
+    for line in bet_lines:
         if "-" not in line:
-            raise ValueError("下注行必须包含 '-' 符号")
+            continue
+        number_part, bet_part = line.split("-", 1)
+        number = number_part.strip()
 
-        number, detail = line.split("-", 1)
-        number = number.strip()
-        parts = detail.lower().split()
+        bet_items = bet_part.strip().split()
+        box_type = None
+        amounts = {}
 
-        is_box = "box" in parts
-        is_ibox = "ibox" in parts
-        parts = [p for p in parts if p not in ["box", "ibox"]]
+        for item in bet_items:
+            item = item.strip().upper()
+            if item in ["IBOX", "BOX"]:
+                box_type = item.lower()
+            else:
+                match = re.match(r"(\d+)([ABCS])", item)
+                if match:
+                    amt, btype = match.groups()
+                    amounts[btype] = int(amt)
 
-        # 处理如：2b 1s
-        for part in parts:
-            if len(part) < 2:
-                continue
-            amount = float(part[:-1])
-            bet_type = part[-1].upper()
-            if bet_type not in ["B", "S", "A", "C"]:
-                raise ValueError(f"未知下注类型：{bet_type}")
-
-            for date in date_list:
-                for market_code in market_codes:
-                    bet_entries.append({
+        for date in dates:
+            for market in markets:
+                for btype, amount in amounts.items():
+                    bets.append({
                         "user_id": user_id,
-                        "username": username,
-                        "market_code": market_code,
+                        "date": date,
+                        "market": market,
                         "number": number,
-                        "bet_type": bet_type,
-                        "is_box": is_box,
-                        "is_ibox": is_ibox,
+                        "bet_type": btype,
                         "amount": amount,
-                        "draw_date": date
+                        "box_type": box_type,
+                        "created_at": datetime.now()
                     })
-    return bet_entries
+
+    return bets

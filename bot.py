@@ -1,63 +1,104 @@
+
 import os
-from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from dotenv import load_dotenv
-from parser import parse_bet_text
-from db import save_bets, get_bet_history, calculate_commission, get_all_commissions
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    CallbackQueryHandler, ContextTypes, filters
+)
+from db import (
+    save_bets, delete_user_bets, get_win_records, calculate_commission,
+    get_user_bets, get_all_commissions, get_max_win_amount
+)
+from parser import parse_bet_message
 
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-OWNER_ID = int(os.getenv("OWNER_ID"))
+OWNER_ID = int(os.getenv("OWNER_ID", "123456789"))
+AGENT_IDS = [int(x) for x in os.getenv("AGENT_IDS", "").split(",") if x]
+temp_bets = {}
 
-# 菜单键盘
-def get_menu(user_id):
-    if user_id == OWNER_ID:
-        return ReplyKeyboardMarkup([["✍️ 写字"], ["📜 查看历史"], ["📊 财务"]], resize_keyboard=True)
-    return ReplyKeyboardMarkup([["✍️ 写字"], ["📜 查看历史"], ["💵 佣金"]], resize_keyboard=True)
+def is_owner(user_id):
+    return user_id == OWNER_ID
 
-# /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("欢迎使用 4D Bot，请选择操作：", reply_markup=get_menu(update.effective_user.id))
+def is_agent(user_id):
+    return user_id in AGENT_IDS
 
-# 接收文字
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    text = update.message.text.strip()
-    
-    if text == "✍️ 写字":
-        await update.message.reply_text("请输入下注格式：\n07/06/2025\nMKT\n1234-2B 1S ibox")
-        return
-
-    elif text == "📜 查看历史":
-        records = get_bet_history(user.id)
-        if not records:
-            await update.message.reply_text("暂无下注记录")
-            return
-        msg = "\n".join([f"{d} [{m}] {n}-{t} {a}" for d, m, n, t, a in records])
-        await update.message.reply_text(f"最近记录：\n{msg}")
-        return
-
-    elif text == "💵 佣金":
-        c = calculate_commission(user.id)
-        await update.message.reply_text(f"你目前累计佣金：RM {c:.2f}")
-        return
-
-    elif text == "📊 财务" and user.id == OWNER_ID:
-        rows = get_all_commissions()
-        msg = "\n".join([f"{u}: RM {c:.2f}" for u, c in rows]) or "暂无佣金数据"
-        await update.message.reply_text(f"代理佣金总览：\n{msg}")
-        return
-
-    # 否则解析下注
-    parsed = parse_bet_text(text)
-    if parsed:
-        save_bets(user.id, user.username or "无名", parsed)
-        await update.message.reply_text(f"✅ 成功记录 {len(parsed)} 条下注")
+def get_main_menu(user_id):
+    if is_owner(user_id):
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("✍️ 写字", callback_data="write")],
+            [InlineKeyboardButton("📜 查看历史", callback_data="history")],
+            [InlineKeyboardButton("🧾 删除下注记录", callback_data="delete")],
+            [InlineKeyboardButton("🎯 查看中奖记录", callback_data="check_wins")],
+            [InlineKeyboardButton("📊 财务", callback_data="finance")],
+        ])
     else:
-        await update.message.reply_text("❌ 无法解析下注格式，请检查格式是否正确。")
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("✍️ 写字", callback_data="write")],
+            [InlineKeyboardButton("📜 查看历史", callback_data="history")],
+            [InlineKeyboardButton("🧾 删除下注记录", callback_data="delete")],
+            [InlineKeyboardButton("🎯 查看中奖记录", callback_data="check_wins")],
+            [InlineKeyboardButton("💰 佣金", callback_data="commission")],
+        ])
 
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.run_polling()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("欢迎使用4D下注系统，请选择操作：", reply_markup=get_main_menu(update.effective_user.id))
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    if query.data == "write":
+        await query.message.reply_text("请输入下注内容：\n格式示例：\n07/06/2025\nMKT\n1234-1B 1S ibox")
+    elif query.data == "delete":
+        delete_user_bets(user_id)
+        await query.message.reply_text("✅ 你的下注记录已全部删除")
+    elif query.data == "check_wins":
+        records = get_win_records(user_id, all_user=is_owner(user_id))
+        await query.message.reply_text(records or "暂无中奖记录")
+    elif query.data == "commission":
+        amt = calculate_commission(user_id)
+        await query.message.reply_text(f"💰 你的佣金累计：RM{amt:.2f}")
+    elif query.data == "finance":
+        summary = get_all_commissions()
+        await query.message.reply_text(summary or "暂无佣金记录")
+    elif query.data == "confirm_bet":
+        user_id = query.from_user.id
+        if user_id in temp_bets:
+            save_bets(user_id, temp_bets[user_id])
+            await query.message.edit_text("✅ 下注成功！", reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("继续下注", callback_data="write")],
+                [InlineKeyboardButton("查看历史", callback_data="history")]
+            ]))
+            del temp_bets[user_id]
+        else:
+            await query.message.edit_text("❌ 没有待确认的下注")
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not (is_owner(user_id) or is_agent(user_id)):
+        await update.message.reply_text("你无权限使用本Bot。")
+        return
+
+    text = update.message.text
+    try:
+        bets = parse_bet_message(text)
+        temp_bets[user_id] = bets
+        total_amount = sum(b["amount"] for b in bets)
+        max_win = get_max_win_amount(bets)
+
+        bet_summary = "\n".join([f'{b["market"]} {b["number"]}-{b["amount"]}{b["bet_type"]} {b["box_type"] or ""}' for b in bets])
+        await update.message.reply_text(
+            f"请确认以下下注内容：\n\n{bet_summary}\n\n总下注：RM{total_amount:.2f}\n最大可赢：RM{max_win:.2f}",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ 确认下注", callback_data="confirm_bet")]])
+        )
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ 无法识别下注格式，请确认后再试。\n正确格式示例：\n07/06/2025\nMKT\n1234-1B 1S ibox\n\n错误详情：{e}"
+        )
+
+app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CallbackQueryHandler(button_handler))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
+
+app.run_polling()
