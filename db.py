@@ -1,6 +1,7 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
+from dotenv import load_dotenv
 import psycopg2
 import os
 
@@ -251,3 +252,20 @@ def get_max_win_amount(bets):
                 total_win += payout * amount
 
     return total_win
+
+load_dotenv()
+
+def get_bet_history(user_id):
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT bet_date, market, number, amount, bet_type, box_type
+        FROM bets
+        WHERE user_id = %s
+        ORDER BY bet_date DESC
+        LIMIT 20;
+    """, (user_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
