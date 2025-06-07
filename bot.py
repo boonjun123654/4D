@@ -73,15 +73,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.message.edit_text("❌ 没有待确认的下注")
 
-async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    username = update.effective_user.username or update.effective_user.full_name
+
     if not (is_owner(user_id) or is_agent(user_id)):
         await update.message.reply_text("你无权限使用本Bot。")
         return
 
-        text = update.message.text.strip()
+    text = update.message.text.strip()
+
     try:
-        user_id = update.effective_user.id
         bets = parse_bet_input(text, user_id, username)
         temp_bets[user_id] = bets
         total_amount = sum(b["amount"] for b in bets)
@@ -89,13 +91,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         bet_summary = "\n".join([f'{b["market"]} {b["number"]}-{b["amount"]}{b["bet_type"]} {b["box_type"] or ""}' for b in bets])
         await update.message.reply_text(
-            f"请确认以下下注内容：\n\n{bet_summary}\n\n总下注：RM{total_amount:.2f}\n最大可赢：RM{max_win:.2f}",
+            f"✅ 请确认以下下注内容：\n\n{bet_summary}\n\n总下注: RM{total_amount:.2f}\n最大可赢: RM{max_win:.2f}",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ 确认下注", callback_data="confirm_bet")]])
         )
     except Exception as e:
         await update.message.reply_text(
             f"❌ 无法识别下注格式，请确认后再试。\n正确格式示例：\n07/06/2025\nMKT\n1234-1B 1S ibox\n\n错误详情：{e}"
         )
+
 
 app = ApplicationBuilder().token(os.getenv("BOT_TOKEN")).build()
 app.add_handler(CommandHandler("start", start))
