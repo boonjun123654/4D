@@ -269,3 +269,14 @@ def get_bet_history(user_id):
     cur.close()
     conn.close()
     return rows
+
+def delete_bets(user_id):
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    cur = conn.cursor()
+    cur.execute("DELETE FROM bets WHERE user_id = %s RETURNING *;", (user_id,))
+    deleted_rows = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return deleted_rows
+
