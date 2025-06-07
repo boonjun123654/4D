@@ -280,3 +280,19 @@ def delete_bets(user_id):
     conn.close()
     return deleted_rows
 
+def get_win_history(user_id):
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT win_date, market, number, bet_type, win_amount
+        FROM win_history
+        WHERE user_id = %s
+        ORDER BY win_date DESC
+        LIMIT 20;
+    """, (user_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+
