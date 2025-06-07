@@ -80,7 +80,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
         text = update.message.text
-        try:
+    try:
         user_id = update.effective_user.id
         bets = parse_bet_message(text, user_id)
         temp_bets[user_id] = bets
