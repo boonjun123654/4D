@@ -198,3 +198,56 @@ def calculate_commission(bet):
     # 按下注市场判断抽水比例
     rate = 0.26 if bet["market"] in ["M", "K", "T", "S"] else 0.19
     return round(bet["amount"] * rate, 2)
+
+def get_max_win_amount(bets):
+    def get_payout(bet_type, market, prize_type, box_type, combo_count=24):
+        payout_table = {
+            "MKT": {
+                "B": {"1": 2750, "2": 1100, "3": 550, "special": 220, "consolation": 66},
+                "S": {"1": 3850, "2": 2200, "3": 1100},
+                "A": {"1": 726},
+                "C": {"1": 242, "2": 242, "3": 242}
+            },
+            "HL": {
+                "B": {"1": 3045, "2": 1050, "3": 525, "special": 210, "consolation": 63},
+                "S": {"1": 4095, "2": 2100, "3": 1050},
+                "A": {"1": 740.25},
+                "C": {"1": 246.75, "2": 246.75, "3": 246.75}
+            }
+        }
+
+        group = "HL" if market in ["H", "L"] else "MKT"
+
+        if box_type == "ibox":
+            base = payout_table[group].get(bet_type, {}).get(prize_type, 0)
+            return round(base / combo_count, 2)
+        else:
+            return payout_table[group].get(bet_type, {}).get(prize_type, 0)
+
+    total_win = 0
+    for bet in bets:
+        number = bet["number"]
+        bet_type = bet["bet_type"]
+        amount = bet["amount"]
+        market = bet["market"]
+        box_type = bet.get("box_type")
+
+        group = "HL" if market in ["H", "L"] else "MKT"
+
+        if bet_type in ["B", "S"]:
+            combo_count = len(set(itertools.permutations(number))) if box_type == "ibox" else 1
+            prize_keys = ["1", "2", "3", "special", "consolation"] if bet_type == "B" else ["1", "2", "3"]
+            for prize in prize_keys:
+                payout = get_payout(bet_type, market, prize, box_type, combo_count)
+                total_win += payout * amount
+
+        elif bet_type == "A":
+            payout = get_payout("A", market, "1", None)
+            total_win += payout * amount
+
+        elif bet_type == "C":
+            for prize in ["1", "2", "3"]:
+                payout = get_payout("C", market, prize, None)
+                total_win += payout * amount
+
+    return total_win
