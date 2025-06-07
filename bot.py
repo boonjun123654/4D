@@ -9,7 +9,7 @@ from db import (
     save_bets, delete_user_bets, get_win_records, calculate_commission,
     get_user_bets, get_all_commissions, get_max_win_amount
 )
-from parser import parse_bet_message
+from parser import parse_bet_input
 
 OWNER_ID = int(os.getenv("OWNER_ID", "123456789"))
 AGENT_IDS = [int(x) for x in os.getenv("AGENT_IDS", "").split(",") if x]
@@ -82,7 +82,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.text
     try:
         user_id = update.effective_user.id
-        bets = parse_bet_message(text, user_id)
+        bets = parse_bet_input(text, user_id, username)
         temp_bets[user_id] = bets
         total_amount = sum(b["amount"] for b in bets)
         max_win = get_max_win_amount(bets)
