@@ -79,7 +79,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("你无权限使用本Bot。")
         return
 
-        text = update.message.text
+        text = update.message.text.strip()
     try:
         user_id = update.effective_user.id
         bets = parse_bet_input(text, user_id, username)
