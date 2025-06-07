@@ -38,6 +38,7 @@ def init_db():
             """)
             conn.commit()
 
+
 # 储存下注
 def save_bets(bets):
     with get_conn() as conn:
@@ -51,6 +52,19 @@ def save_bets(bets):
                     b["amount"], b["box_type"], b["created_at"]
                 ))
             conn.commit()
+
+# 保证 get_user_bets 函数定义在 db.py
+# 如果未定义，添加下面这个函数
+
+def get_user_bets(user_id):
+    from psycopg2.extras import RealDictCursor
+    import psycopg2
+    import os
+    conn = psycopg2.connect(os.getenv("DATABASE_URL"), cursor_factory=RealDictCursor)
+    with conn.cursor() as cur:
+        cur.execute("SELECT date, market, number, bet_type, amount, box_type FROM bets WHERE user_id = %s ORDER BY date DESC", (user_id,))
+        return cur.fetchall()
+
 
 # 删除下注（只能删除自己）
 def delete_user_bets(user_id):
