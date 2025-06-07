@@ -79,9 +79,9 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("你无权限使用本Bot。")
         return
 
-    text = update.message.text
-    try:
-        bets = parse_bet_message(text)
+        text = update.message.text
+        user_id = update.effective_user.id
+        bets = parse_bet_message(text, user_id)
         temp_bets[user_id] = bets
         total_amount = sum(b["amount"] for b in bets)
         max_win = get_max_win_amount(bets)
