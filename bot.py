@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from db import save_bets, get_bet_history, calculate_commission, get_all_commissions, delete_bets, get_win_history, get_max_win_amount, save_win_numbers
 from parser import parse_bet_input
 
+temp_bets = {}
+
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OWNER_ID = int(os.getenv("OWNER_ID"))
@@ -59,9 +61,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if text == "🧾 删除记录":
+        from db import delete_bets
         deleted = delete_bets(uid)
         await update.message.reply_text(f"✅ 已删除 {deleted} 条下注记录。")
         return
+
 
     if text == "🎯 查看中奖":
         wins = get_win_history(uid)
@@ -74,16 +78,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(msg)
         return
 
+    if not any(x in text for x in ['B', 'S', 'A', 'C']):
+        await update.message.reply_text("❌ 无效格式，请输入如：\nMKT 1234-1B 1S\n支持多日下注格式：\n07/06/2025&08/06/2025 MKT 1234-1B")
+        return
+
+
     try:
         bets = parse_bet_input(text, uid, uname)
         temp_bets[uid] = bets
+
+        # 计算最高可能中奖金额
+        from parser import get_max_win_amount
         max_win = get_max_win_amount(bets)
-        confirm_btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ 确认下注", callback_data="confirm_bet")]
-        ])
-        await update.message.reply_text(f"📝 共 {len(bets)} 条记录，最高可赢 RM{max_win:.2f}，请确认：", reply_markup=confirm_btn)
+
+        keyboard = [
+            [InlineKeyboardButton("✅ 确认下注", callback_data="confirm_bet")],
+        ]
+        await update.message.reply_text(
+            f"✅ 共 {len(bets)} 条记录，最高可赢 RM{max_win:.2f}，请点击确认下注：",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     except Exception as e:
         await update.message.reply_text(f"❌ 格式错误：{e}")
+
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -116,10 +133,28 @@ async def set_win_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ 设置失败：{e}")
 
+async def confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    uid = query.from_user.id
+
+    if uid not in temp_bets:
+        await query.edit_message_text("❌ 未找到待确认的下注记录，请重新输入。")
+        return
+
+    from db import save_bets
+    save_bets(temp_bets[uid])
+    del temp_bets[uid]
+
+    await query.edit_message_text("✅ 下注记录已保存！")
+
+
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("开奖号码", set_win_numbers))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CallbackQueryHandler(confirm_bet, pattern="^confirm_bet$"))
+
     app.run_polling()
