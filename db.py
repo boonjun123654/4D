@@ -296,6 +296,35 @@ def get_win_history(user_id):
     conn.close()
     return rows
 
+def record_commission(bet_id, user_id, market, total_amount):
+    # 判断市场抽水比例
+    if market in ["M", "K", "T", "S"]:
+        rate = 0.26
+    elif market in ["H", "L"]:
+        rate = 0.19
+    else:
+        return
+
+    # 获取代理和老板 ID
+    agent_id = get_agent_id(user_id)
+    boss_id = get_boss_id()
+
+    commission_total = total_amount * rate
+    agent_commission = commission_total * 0.3
+    boss_commission = commission_total * 0.7
+
+    # 插入记录（可拆分成两条记录分别代表代理与老板）
+    cursor.execute("""
+        INSERT INTO commissions (bet_id, agent_id, boss_id, commission_amount, commission_type)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (bet_id, agent_id, boss_id, agent_commission, market))
+
+    cursor.execute("""
+        INSERT INTO commissions (bet_id, agent_id, boss_id, commission_amount, commission_type)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (bet_id, None, boss_id, boss_commission, market))
+
+
 def save_win_numbers(market, win_date, prize_dict):
     conn = psycopg2.connect(os.getenv("DATABASE_URL"))
     cur = conn.cursor()
