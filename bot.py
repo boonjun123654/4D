@@ -3,6 +3,8 @@ import os
 import logging
 import random
 import string
+from collections import defaultdict
+from telegram import ParseMode
 from datetime import date, timedelta, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -194,30 +196,28 @@ async def cmd_commission(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /history
-    列出最近 7 天按日期分组的所有下注明细。
+    列出最近 7 天按日期分组的所有下注明细，Markdown 格式输出。
     """
     # 1. 计算查询起始日期
     start_date = date.today() - timedelta(days=6)
 
-    # 2. 从数据库拉取记录
+    # 2. 拉取数据
     if USE_PG:
         sql = """
-        SELECT
-          bet_date, market, number, bet_type, mode,
-          amount, potential_win, commission, code
-        FROM bets
-        WHERE bet_date >= %s
-        ORDER BY bet_date DESC, created_at;
+        SELECT bet_date, market, number, bet_type, mode,
+               amount, potential_win, commission, code
+          FROM bets
+         WHERE bet_date >= %s
+         ORDER BY bet_date DESC, created_at;
         """
         cursor.execute(sql, (start_date,))
     else:
         sql = """
-        SELECT
-          bet_date, market, number, bet_type, mode,
-          amount, potential_win, commission, code
-        FROM bets
-        WHERE date(bet_date) >= date('now', '-6 days')
-        ORDER BY bet_date DESC, created_at;
+        SELECT bet_date, market, number, bet_type, mode,
+               amount, potential_win, commission, code
+          FROM bets
+         WHERE date(bet_date) >= date('now', '-6 days')
+         ORDER BY bet_date DESC, created_at;
         """
         cursor.execute(sql)
 
@@ -226,34 +226,32 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("最近 7 天内没有下注记录。")
         return
 
-    # 3. 按日期分组，格式化输出
-    output_lines = []
-    last_date = None
+    # 3. 分组整理
+    grouped = defaultdict(list)
     for row in rows:
         bet_date, market, number, bet_type, mode, amount, potential, com, code = row
-        # 处理不同 DB 返回的日期类型
+        # 统一格式化日期为 DD/MM
         if isinstance(bet_date, str):
             dt = datetime.strptime(bet_date, "%Y-%m-%d")
         else:
             dt = bet_date
         disp_date = dt.strftime("%d/%m")
+        grouped[disp_date].append((market, number, bet_type, mode, amount, potential, com, code))
 
-        # 每当新日期出现，插入一个日期标题行
-        if disp_date != last_date:
-            output_lines.append(f"\n{disp_date}")
-            last_date = disp_date
+    # 4. 构造 Markdown 文本
+    lines = []
+    for disp_date in sorted(grouped.keys(), reverse=True):
+        lines.append(f"*{disp_date}*")  # 日期标题
+        for market, number, bet_type, mode, amount, potential, com, code in grouped[disp_date]:
+            mode_txt = f" {mode.upper()}" if mode else ""
+            lines.append(
+                f"- `{market}`: `{number}-{amount}{bet_type}{mode_txt}`  │  "
+                f"Win: RM{float(potential):.2f}  │  Com: RM{float(com):.2f}  │  `Code: {code}`"
+            )
+        lines.append("")  # 每个日期后留一空行
 
-        # 组装本条注单信息
-        mode_str = f" {mode.upper()}" if mode else ""
-        # 显示示例： MKT|1532-1B ibox|Amt:2|Win:5500|Com:0.52|Code:250608ABC
-        output_lines.append(
-            f"{market} | {number}-{amount}{bet_type}{mode_str} "
-            f"| Win:RM{float(potential):.2f} | Com:RM{float(com):.2f} | Code:{code}"
-        )
-
-    # 4. 发送合并后的文本（去掉首个多余换行）
-    text = "\n".join(output_lines).lstrip("\n")
-    await update.message.reply_text(text)
+    text = "\n".join(lines).strip()
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
 def main():
     token = os.getenv('BOT_TOKEN')
