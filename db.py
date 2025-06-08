@@ -8,6 +8,8 @@ if database_url:
     # 生产环境：PostgreSQL
     import psycopg2
     conn = psycopg2.connect(database_url)
+    conn.autocommit = True
+
 else:
     # 本地调试：SQLite
     conn = sqlite3.connect("data.db", check_same_thread=False)
