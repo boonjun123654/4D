@@ -56,10 +56,10 @@ else:
         );
         """)
 
-    # 确保旧表也有 code 列（若不存在则添加）
-    cursor.execute("ALTER TABLE bets ADD COLUMN IF NOT EXISTS code VARCHAR(9);")
-    # 为 code 字段创建索引
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_bets_code ON bets(code);")
+        # 确保旧表也有 code 列（若不存在则添加）
+        cursor.execute("ALTER TABLE bets ADD COLUMN IF NOT EXISTS code VARCHAR(9);")
+        # 为 code 字段创建索引
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_bets_code ON bets(code);")
 
 
 conn.commit()
