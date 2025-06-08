@@ -164,20 +164,29 @@ def get_ibox_payout(number, market, bet_type):
     else:
         return round(base_payout / combo_count, 2)
 
-if box_type == 'box':
-    # 计算组合数
-    combo_count = len(get_all_permutations(number))  # 24 / 12 / 6 / 4
+# parser.py
 
-    for bet_type, amount in bet_types:
-        total_amount = amount * combo_count  # ✅ box模式总额 = 金额 × 组合数
-        bet = {
-            "date": date,
-            "market": market,
-            "number": number,
-            "bet_type": bet_type,
-            "amount": total_amount,
-            "box_type": box_type,
-            "created_at": datetime.now(),
-        }
-        bets.append(bet)
+def get_box_multiplier(number: str) -> int:
+    """
+    根据号码判断 box 组合数（用于计算 box 模式下注总额）
+    """
+    digits = list(number)
+    unique_digits = set(digits)
+    count = len(unique_digits)
+    if count == 4:
+        return 24
+    elif count == 3:
+        # 两个数字重复，如 2234（ABBC）：12 种组合
+        return 12
+    elif count == 2:
+        if digits.count(digits[0]) == 2:
+            # 形如 2233：6 种组合
+            return 6
+        else:
+            # 三个一样如 2223（AAAB）：4 种组合
+            return 4
+    else:
+        # 四个一样（如 1111），只算一种
+        return 1
+
 
