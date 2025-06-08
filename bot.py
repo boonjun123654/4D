@@ -3,7 +3,7 @@ import os
 import logging
 import random
 import string
-from datetime import datetime
+from datetime import date, timedelta, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -192,9 +192,68 @@ async def cmd_commission(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines))
 
 async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # TODO: 实现过去7天的详细记录查询
-    await update.message.reply_text("功能待完善：/history 报表")
+    """
+    /history
+    列出最近 7 天按日期分组的所有下注明细。
+    """
+    # 1. 计算查询起始日期
+    start_date = date.today() - timedelta(days=6)
 
+    # 2. 从数据库拉取记录
+    if USE_PG:
+        sql = """
+        SELECT
+          bet_date, market, number, bet_type, mode,
+          amount, potential_win, commission, code
+        FROM bets
+        WHERE bet_date >= %s
+        ORDER BY bet_date DESC, created_at;
+        """
+        cursor.execute(sql, (start_date,))
+    else:
+        sql = """
+        SELECT
+          bet_date, market, number, bet_type, mode,
+          amount, potential_win, commission, code
+        FROM bets
+        WHERE date(bet_date) >= date('now', '-6 days')
+        ORDER BY bet_date DESC, created_at;
+        """
+        cursor.execute(sql)
+
+    rows = cursor.fetchall()
+    if not rows:
+        await update.message.reply_text("最近 7 天内没有下注记录。")
+        return
+
+    # 3. 按日期分组，格式化输出
+    output_lines = []
+    last_date = None
+    for row in rows:
+        bet_date, market, number, bet_type, mode, amount, potential, com, code = row
+        # 处理不同 DB 返回的日期类型
+        if isinstance(bet_date, str):
+            dt = datetime.strptime(bet_date, "%Y-%m-%d")
+        else:
+            dt = bet_date
+        disp_date = dt.strftime("%d/%m")
+
+        # 每当新日期出现，插入一个日期标题行
+        if disp_date != last_date:
+            output_lines.append(f"\n{disp_date}")
+            last_date = disp_date
+
+        # 组装本条注单信息
+        mode_str = f" {mode.upper()}" if mode else ""
+        # 显示示例： MKT|1532-1B ibox|Amt:2|Win:5500|Com:0.52|Code:250608ABC
+        output_lines.append(
+            f"{market} | {number}-{amount}{bet_type}{mode_str} "
+            f"| Win:RM{float(potential):.2f} | Com:RM{float(com):.2f} | Code:{code}"
+        )
+
+    # 4. 发送合并后的文本（去掉首个多余换行）
+    text = "\n".join(output_lines).lstrip("\n")
+    await update.message.reply_text(text)
 
 def main():
     token = os.getenv('BOT_TOKEN')
