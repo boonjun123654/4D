@@ -1,139 +1,142 @@
+# parser.py
+
 import re
 from datetime import datetime
-from itertools import permutations
+from typing import List, Dict
 
-# 奖金赔率配置
-PAYOUTS = {
-    "MKTS": {"B": 2750, "S": 3850, "A": 726, "C": 242},
-    "HL": {"B": 3045, "S": 4095, "A": 740.25, "C": 246.75}
-}
+# 支持的 market code
+VALID_MARKETS = {"M", "K", "T", "S", "H", "L"}
 
-# iBox 奖金配置
-ODDS = {
-    "MKTS": {
-        "B": {"1": 2750, "2": 1100, "3": 550, "S": 220, "C": 66},
-        "S": {"1": 3850, "2": 2200, "3": 1100},
-        "A": 726,
-        "C": 242,
-        "iBox": {
-            24: {"B": {"1": 114.58}, "S": {"1": 160.42}},
-            12: {"B": {"1": 229.17}, "S": {"1": 320.83}},
-            6:  {"B": {"1": 458.33}, "S": {"1": 641.67}},
-            4:  {"B": {"1": 687.50}, "S": {"1": 962.50}}
-        }
-    },
-    "HL": {
-        "B": {"1": 3045, "2": 1050, "3": 525, "S": 210, "C": 63},
-        "S": {"1": 4095, "2": 2100, "3": 1050},
-        "A": 740.25,
-        "C": 246.75,
-        "iBox": {
-            24: {"B": {"1": 126.88}, "S": {"1": 170.63}},
-            12: {"B": {"1": 253.75}, "S": {"1": 341.25}},
-            6:  {"B": {"1": 507.50}, "S": {"1": 682.50}},
-            4:  {"B": {"1": 761.25}, "S": {"1": 1023.75}}
-        }
-    }
-}
+def parse_bet_text(text: str, default_year: int = 2025) -> List[Dict]:
+    """
+    将下注文本拆成多笔注单。
+    
+    文本格式示例：
+        08/06
+        MKT
+        1526-1B 1S ibox
+        1234-2C box 5A
 
-COMMISSION_RATE = {"MKTS": 0.26, "HL": 0.19}
+    返回示例：
+    [
+      {
+        "date": "2025-06-08",
+        "markets": ["M","K","T"],
+        "number": "1526",
+        "type": "B",
+        "mode": "ibox",
+        "amount": 1
+      },
+      {
+        "date": "2025-06-08",
+        "markets": ["M","K","T"],
+        "number": "1526",
+        "type": "S",
+        "mode": "ibox",
+        "amount": 1
+      },
+      {
+        "date": "2025-06-08",
+        "markets": ["M","K","T"],
+        "number": "1234",
+        "type": "C",
+        "mode": "box",
+        "amount": 2
+      },
+      {
+        "date": "2025-06-08",
+        "markets": ["M","K","T"],
+        "number": "1234",
+        "type": "A",
+        "mode": "box",
+        "amount": 5
+      }
+    ]
+    """
+    # 1. 分行并去除空行
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) < 3:
+        raise ValueError("格式错误：至少需要日期、市场行、下注行")
 
-def get_comb_count(number: str) -> int:
-    return len(set(permutations(number)))
+    # 2. 解析日期
+    date_match = re.match(r"^(\d{1,2})/(\d{1,2})$", lines[0])
+    if not date_match:
+        raise ValueError(f"无效日期格式：{lines[0]}")
+    day, month = map(int, date_match.groups())
+    date_obj = datetime(default_year, month, day)
+    date_str = date_obj.strftime("%Y-%m-%d")
 
-def get_box_multiplier(number: str) -> int:
-    digits = list(number)
-    unique_digits = set(digits)
-    count = len(unique_digits)
-    if count == 4:
-        return 24
-    elif count == 3:
-        return 12
-    elif count == 2:
-        if digits.count(digits[0]) == 2:
-            return 6
-        else:
-            return 4
-    else:
-        return 1
+    # 3. 解析市场代码
+    market_line = lines[1].replace(" ", "").upper()
+    markets = [c for c in market_line if c in VALID_MARKETS]
+    if not markets:
+        raise ValueError(f"未识别任何有效市场代码：{lines[1]}")
 
-def validate_number_format(number: str) -> bool:
-    return re.fullmatch(r"\d{4}", number) is not None
+    # 4. 遍历下注行，拆出每笔注单
+    bets: List[Dict] = []
+    for line in lines[2:]:
+        tokens = line.split()
+        # 检查是否有特殊模式 ibox/box
+        mode = None
+        if tokens[-1].lower() in ("ibox", "box"):
+            mode = tokens[-1].lower()
+            tokens = tokens[:-1]
 
-def get_ibox_payout(number, market, bet_type):
-    combo_count = get_comb_count(number)
-    base_payout = PAYOUTS[market][bet_type]
-    return round(base_payout / combo_count, 2)
+        current_number = None
+        for tok in tokens:
+            # 格式：号码-金额类型，例如 "1526-1B"
+            m_full = re.match(r"^(\d{1,4})-(\d+)([BSAC])$", tok, re.IGNORECASE)
+            if m_full:
+                num, amt, t = m_full.groups()
+                current_number = num.zfill(4)
+                bets.append({
+                    "date": date_str,
+                    "markets": markets,
+                    "number": current_number,
+                    "type": t.upper(),
+                    "mode": mode,
+                    "amount": int(amt)
+                })
+                continue
 
-def parse_bet_input(text, user_id, username):
-    lines = text.strip().split("\n")
-    all_bets = []
-    current_date = None
-    market_codes = []
+            # 格式：金额类型，例如 "1S"
+            m_part = re.match(r"^(\d+)([BSAC])$", tok, re.IGNORECASE)
+            if m_part:
+                if current_number is None:
+                    raise ValueError(f"未指定号码，无法解析：{tok}")
+                amt, t = m_part.groups()
+                bets.append({
+                    "date": date_str,
+                    "markets": markets,
+                    "number": current_number,
+                    "type": t.upper(),
+                    "mode": mode,
+                    "amount": int(amt)
+                })
+                continue
 
-    for line in lines:
-        line = line.strip()
+            # 跳过无法识别的 token
+            # raise ValueError(f"无法解析的 token：{tok}")
 
-        if re.match(r"\d{2}/\d{2}/\d{4}(&\d{2}/\d{2}/\d{4})*", line):
-            current_date = line.strip()
-            continue
+    return bets
 
-        if re.match(r"^[MKTSHL]+$", line):
-            market_codes = list(line)
-            continue
-
-        if "-" in line:
-            try:
-                number_part, rest = line.split("-", 1)
-                number = number_part.strip()
-                if not validate_number_format(number):
-                    raise ValueError("号码必须是4位数字")
-
-                bets = rest.strip().split()
-                types = []
-                box_mode = None
-                for b in bets:
-                    if b.lower() in ["ibox", "box"]:
-                        box_mode = b.lower()
-                    elif re.match(r"\d+[BSAC]", b.upper()):
-                        types.append(b.upper())
-                    else:
-                        raise ValueError(f"未知下注类型：{b}")
-
-                for date_str in current_date.split("&"):
-                    bet_date = datetime.strptime(date_str, "%d/%m/%Y").date()
-
-                    for mkt in market_codes:
-                        for t in types:
-                            amount = int(re.findall(r"\d+", t)[0])
-                            bet_type = re.findall(r"[BSAC]", t)[0]
-
-                            combo = 1
-                            win_amount = PAYOUTS[mkt][bet_type]
-
-                            if box_mode == "ibox":
-                                combo = get_comb_count(number)
-                                if bet_type in ["B", "S"]:
-                                    win_amount = get_ibox_payout(number, mkt, bet_type)
-
-                            elif box_mode == "box":
-                                combo = get_box_multiplier(number)
-                                amount *= combo  # ✅ 关键修改：金额乘以组合数
-                                # win_amount 不变，维持原赔率
-
-                            bet_record = {
-                                "user_id": user_id,
-                                "username": username,
-                                "date": bet_date.strftime("%Y-%m-%d"),
-                                "market": mkt,
-                                "number": number,
-                                "type": bet_type,
-                                "amount": amount,
-                                "box_mode": box_mode,
-                                "combo": combo,
-                                "win_amount": win_amount
-                            }
-                            all_bets.append(bet_record)
-            except Exception as e:
-                raise Exception(f"解析失败: '{line}' → {e}")
-    return all_bets
+# ---------- 本地测试 ----------
+if __name__ == "__main__":
+    samples = [
+        """\
+08/06
+MKT
+1526-1B 1S ibox
+""",
+        """\
+09/06
+MS
+1234-2C box 5A
+"""
+    ]
+    for txt in samples:
+        print("输入：")
+        print(txt)
+        print("输出：")
+        print(parse_bet_text(txt))
+        print("-" * 30)
