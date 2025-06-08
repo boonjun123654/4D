@@ -42,7 +42,7 @@ def init_db():
 
 
 # 储存下注
-def save_bets(bets):
+def save_bets(user_id, bets):
     with get_conn() as conn:
         with conn.cursor() as cur:
             for b in bets:
@@ -50,10 +50,11 @@ def save_bets(bets):
                 INSERT INTO bets (user_id, date, market, number, bet_type, amount, box_type, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    b["user_id"], b["date"], b["market"], b["number"], b["bet_type"],
+                    user_id, b["date"], b["market"], b["number"], b["bet_type"],
                     b["amount"], b["box_type"], b["created_at"]
                 ))
             conn.commit()
+
 
 # 保证 get_user_bets 函数定义在 db.py
 # 如果未定义，添加下面这个函数
