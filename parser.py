@@ -109,6 +109,8 @@ def parse_bet_text(text: str, default_year: int = 2025) -> List[Dict]:
                 if current_number is None:
                     raise ValueError(f"未指定号码，无法解析：{tok}")
                 amt, t = m_part.groups()
+                if mode and t.upper() not in ("B", "S"):
+                    raise ValueError(f"模式“{mode}”只能用于 B/S 类型下注，无法用于 {t.upper()}。")
                 bets.append({
                     "date": date_str,
                     "markets": markets,
