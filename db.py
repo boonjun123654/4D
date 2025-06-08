@@ -81,7 +81,7 @@ for b in bets:
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, (user_id, username, market, draw_date, amount, commission, agent, agent_comm, boss, boss_comm))
 
-            conn.commit()
+    conn.commit()
 
 
 # 保证 get_user_bets 函数定义在 db.py
