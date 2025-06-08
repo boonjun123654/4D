@@ -82,7 +82,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ 无效格式，请输入如：\nMKT 1234-1B 1S\n支持多日下注格式：\n07/06/2025&08/06/2025 MKT 1234-1B")
         return
 
-
     try:
         bets = parse_bet_input(text, uid, uname)
         temp_bets[uid] = bets
