@@ -99,6 +99,16 @@ def save_bets(user_id, bets):
 
         conn.commit()
 
+        # 在 save_bets 中调用
+        save_commission_record(
+            agent_id=user_id,
+            owner_id=OWNER_ID,
+            amount_agent=commission_agent,
+            amount_owner=commission_owner,
+            source_info=f"{number}-{play_type}-{amount}"
+        )
+
+
 
 # 保证 get_user_bets 函数定义在 db.py
 # 如果未定义，添加下面这个函数
