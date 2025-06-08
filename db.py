@@ -24,7 +24,7 @@ if database_url:
         id SERIAL PRIMARY KEY,
         agent_id BIGINT NOT NULL,
         bet_date DATE NOT NULL,
-        market CHAR(1) NOT NULL,
+        market TEXT NOT NULL,
         number VARCHAR(4) NOT NULL,
         bet_type VARCHAR(4) NOT NULL,
         mode VARCHAR(8),
