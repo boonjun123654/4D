@@ -140,8 +140,56 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ 下注记录已删除。")
 
 async def cmd_commission(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # TODO: 实现过去7天的报表查询
-    await update.message.reply_text("功能待完善：/commission 报表")
+    """
+    /commission
+    显示最近 7 天（含今天）每天的下注总额与佣金总额。
+    """
+    # 计算起始日期（7 天前）
+    start_date = date.today() - timedelta(days=6)
+
+    if USE_PG:
+        # Postgres：market 列是逗号分隔的市场字符串
+        sql = """
+        SELECT
+          bet_date,
+          SUM(array_length(string_to_array(market, ','), 1) * amount)::numeric AS total_amount,
+          SUM(array_length(string_to_array(market, ','), 1) * commission)::numeric AS total_commission
+        FROM bets
+        WHERE bet_date >= %s
+        GROUP BY bet_date
+        ORDER BY bet_date DESC;
+        """
+        cursor.execute(sql, (start_date,))
+    else:
+        # SQLite：用 LENGTH 和 REPLACE 计算逗号数 + 1
+        sql = """
+        SELECT
+          bet_date,
+          SUM((LENGTH(market) - LENGTH(REPLACE(market, ',', '')) + 1) * amount) AS total_amount,
+          SUM((LENGTH(market) - LENGTH(REPLACE(market, ',', '')) + 1) * commission) AS total_commission
+        FROM bets
+        WHERE date(bet_date) >= date('now', '-6 days')
+        GROUP BY bet_date
+        ORDER BY bet_date DESC;
+        """
+        cursor.execute(sql)
+
+    rows = cursor.fetchall()
+    if not rows:
+        await update.message.reply_text("最近 7 天内没有下注记录。")
+        return
+
+    # 格式化输出
+    lines = []
+    for bet_date, total_amt, total_com in rows:
+        # bet_date 在 Postgres 下是 date 对象，在 SQLite 下可能是字符串
+        if isinstance(bet_date, str):
+            display_date = datetime.strptime(bet_date, "%Y-%m-%d").strftime("%d/%m")
+        else:
+            display_date = bet_date.strftime("%d/%m")
+        lines.append(f"{display_date}：总额 RM{float(total_amt):.2f} / 佣金 RM{float(total_com):.2f}")
+
+    await update.message.reply_text("\n".join(lines))
 
 async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # TODO: 实现过去7天的详细记录查询
