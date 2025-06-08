@@ -76,7 +76,7 @@ def calculate(bets: List[Dict]) -> Dict:
             potential_per_market = std_odds / comb * amt
         else:
             # 普通 or box：赔率不变（box 已在 stake 里体现乘数）
-            potential_per_market = std_odds * (stake_per_market / amt)
+            potential_per_market = std_odds * stake_per_market
 
         # 4. 多市场累加
         n_markets = len(markets)
