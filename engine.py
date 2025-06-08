@@ -91,7 +91,7 @@ def calculate(bets: List[Dict]) -> Dict:
 
         # 6. 累计到总数
         total_amount    += bet_total_stake
-        total_potential += bet_total_potential
+        total_potential += potential_per_market
         total_commission+= commission
 
         # 7. 回写回 bet dict
