@@ -43,13 +43,13 @@ def init_db():
 
 # 储存下注
 def save_bets(user_id, bets):
-    with conn.cursor() as cur:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
             for b in bets:
                 cur.execute("""
                 INSERT INTO bets (user_id, date, market, number, bet_type, amount, box_type, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (with get_conn() as conn:
-        with conn.
+                """, (
                     user_id, b["date"], b["market"], b["number"], b["bet_type"],
                     b["amount"], b["box_type"], b["created_at"]
                 ))
