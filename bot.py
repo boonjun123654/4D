@@ -4,7 +4,7 @@ import logging
 import random
 import string
 from collections import defaultdict
-from telegram import ParseMode
+from telegram.constants import ParseMode
 from datetime import date, timedelta, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -251,7 +251,7 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append("")  # 每个日期后留一空行
 
     text = "\n".join(lines).strip()
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(text, parse_mode="Markdown")
 
 def main():
     token = os.getenv('BOT_TOKEN')
