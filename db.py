@@ -1,4 +1,6 @@
 import psycopg2
+from parser import get_box_multiplier
+from db import get_conn
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 from dotenv import load_dotenv
@@ -40,48 +42,60 @@ def init_db():
             """)
             conn.commit()
 
-
 # 储存下注
 def save_bets(user_id, bets):
     with get_conn() as conn:
         with conn.cursor() as cur:
+            # 插入下注记录
             for b in bets:
                 cur.execute("""
-                INSERT INTO bets (user_id, date, market, number, bet_type, amount, box_type, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO bets (user_id, date, market, number, bet_type, amount, box_type, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    user_id, b["date"], b["market"], b["number"], b["bet_type"],
+                    b["user_id"], b["date"], b["market"], b["number"], b["bet_type"],
                     b["amount"], b["box_type"], b["created_at"]
                 ))
 
-# 查询代理和老板 → 计算佣金 → 存入 commissions
-for b in bets:
-    user_id = b["user_id"]
-    username = b.get("username", "")
-    amount = b["amount"]
-    market = b["market"]
-    draw_date = b["date"]
+            # 插入佣金记录
+            for b in bets:
+                bet_user_id = b["user_id"]
+                username = b.get("username", "")
+                amount = b["amount"]
+                market = b["market"]
+                draw_date = b["date"]
+                box_type = b.get("box_type")
+                number = b.get("number")
 
-    # 获取代理和老板
-    cur.execute("SELECT agent, boss FROM users WHERE user_id = %s", (user_id,))
-    row = cur.fetchone()
-    if not row:
-        continue
-    agent, boss = row
+                # 处理 box/ibox 模式的金额
+                if box_type == "box":
+                    amount *= get_box_multiplier(number)
+                elif box_type == "ibox":
+                    amount = round(amount / get_box_multiplier(number), 2)
 
-    # 抽水比例（MKTS: 26%，H/L: 19%）
-    rate = 0.26 if market in ["M", "K", "T", "S"] else 0.19
-    commission = round(amount * rate, 2)
-    agent_comm = round(commission * 0.3, 2)
-    boss_comm = round(commission * 0.7, 2)
+                # 获取代理和老板
+                cur.execute("SELECT agent, boss FROM users WHERE user_id = %s", (bet_user_id,))
+                row = cur.fetchone()
+                if not row:
+                    continue
+                agent, boss = row
 
-    # 存入佣金明细表
-    cur.execute("""
-        INSERT INTO commissions (user_id, username, market, draw_date, total_amount, commission, agent, agent_comm, boss, boss_comm)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """, (user_id, username, market, draw_date, amount, commission, agent, agent_comm, boss, boss_comm))
+                # 计算佣金（MKTS 26%，H/L 19%）
+                rate = 0.26 if market in ["M", "K", "T", "S"] else 0.19
+                commission = round(amount * rate, 2)
+                agent_comm = round(commission * 0.3, 2)
+                boss_comm = round(commission * 0.7, 2)
 
-    conn.commit()
+                # 插入佣金记录
+                cur.execute("""
+                    INSERT INTO commissions (user_id, username, market, draw_date, total_amount,
+                        commission, agent, agent_comm, boss, boss_comm)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    bet_user_id, username, market, draw_date, amount,
+                    commission, agent, agent_comm, boss, boss_comm
+                ))
+
+        conn.commit()
 
 
 # 保证 get_user_bets 函数定义在 db.py
