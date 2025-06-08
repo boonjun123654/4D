@@ -39,26 +39,28 @@ if database_url:
     """)
 else:
     # SQLite 模式
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS bets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        agent_id INTEGER NOT NULL,
-        bet_date TEXT NOT NULL,
-        market TEXT NOT NULL,
-        number TEXT NOT NULL,
-        bet_type TEXT NOT NULL,
-        mode TEXT,
-        amount REAL NOT NULL,
-        potential_win REAL NOT NULL,
-        commission REAL NOT NULL,
-        code TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    """)
-    # SQLite 为 code 字段创建索引
-    cursor.execute("""
-    CREATE INDEX IF NOT EXISTS idx_bets_code ON bets(code);
-    """)
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bets (
+            id SERIAL PRIMARY KEY,
+            agent_id BIGINT NOT NULL,
+            bet_date DATE NOT NULL,
+            market CHAR(1) NOT NULL,
+            number VARCHAR(4) NOT NULL,
+            bet_type VARCHAR(4) NOT NULL,
+            mode VARCHAR(8),
+            amount NUMERIC NOT NULL,
+            potential_win NUMERIC NOT NULL,
+            commission NUMERIC NOT NULL,
+            code VARCHAR(9) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
+    # 确保旧表也有 code 列（若不存在则添加）
+    cursor.execute("ALTER TABLE bets ADD COLUMN IF NOT EXISTS code VARCHAR(9);")
+    # 为 code 字段创建索引
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_bets_code ON bets(code);")
+
 
 conn.commit()
 
