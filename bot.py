@@ -54,12 +54,14 @@ async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    await query.answer(text="下注处理中…", show_alert=False)
 
     bets = context.user_data.get('pending_bets')
     if not bets:
-        await query.message.reply_text("⚠️ 未找到待确认的下注记录，请重新发送下注。")
+        await query.answer(text="⚠️ 未找到待确认的下注记录，请重新下注！", show_alert=True)
         return
+
+
 
     # 生成删除 Code
     date_str = datetime.now().strftime('%y%m%d')
@@ -94,10 +96,10 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     conn.commit()
 
     # 清除按钮，发送成功提示
-    await query.edit_message_reply_markup(reply_markup=None)
-    await query.message.reply_text(
+    await query.edit_message_text(
         f"✅ 下注成功！\nCode：{delete_code}\n如需删除，请使用：/delete {delete_code}"
     )
+
     context.user_data.pop('pending_bets', None)
 
 async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
