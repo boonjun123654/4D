@@ -135,18 +135,35 @@ async def set_win_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-    uid = query.from_user.id
+    user_id = query.from_user.id
+    username = query.from_user.username or query.from_user.full_name
 
-    if uid not in temp_bets:
-        await query.edit_message_text("❌ 未找到待确认的下注记录，请重新输入。")
+    await query.answer()
+
+    if user_id not in temp_bets:
+        await query.edit_message_text("❗未找到待确认的下注记录，请重新输入。")
         return
 
-    from db import save_bets
-    save_bets(temp_bets[uid])
-    del temp_bets[uid]
+    bets = temp_bets[user_id]
 
-    await query.edit_message_text("✅ 下注记录已保存！")
+    # 保存下注
+    save_bets(user_id, username, bets)
+
+    # 计算总额和最大可能中奖金额
+    total = sum(b['amount'] for b in bets)
+    max_win = get_max_win_amount(bets)
+
+    # 删除临时缓存
+    del temp_bets[user_id]
+
+    await query.edit_message_text(
+        f"✅下注成功！\n\n📌 共下注：{len(bets)}笔\n🧾 总金额：RM{total:.2f}\n🎯 最高可能中奖：RM{max_win:.2f}",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📝 再下一笔", callback_data="write_bet")],
+            [InlineKeyboardButton("📖 查看历史", callback_data="view_history")]
+        ])
+    )
+
 
 
 if __name__ == "__main__":
