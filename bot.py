@@ -54,26 +54,32 @@ async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+
+    # 1. 给用户一个点击反馈（短暂吐司）
     await query.answer(text="下注处理中…", show_alert=False)
 
+    # 2. 从缓存读取待确认注单
     bets = context.user_data.get('pending_bets')
     if not bets:
-        await query.answer(text="⚠️ 未找到待确认的下注记录，请重新下注！", show_alert=True)
+        # 如果找不到，给一个弹窗提示
+        await query.answer(
+            text="⚠️ 未找到待确认的下注记录，请重新下注！",
+            show_alert=True
+        )
         return
 
-
-
-    # 生成删除 Code
+    # 3. 生成删除用 Code（格式：YYMMDD + 3 随机大写字母）
     date_str = datetime.now().strftime('%y%m%d')
     rand_letters = ''.join(random.choices(string.ascii_uppercase, k=3))
     delete_code = f"{date_str}{rand_letters}"
 
-    # 批量写库
+    # 4. 写入数据库
+    USE_PG = bool(os.getenv("DATABASE_URL"))
     for bet in bets:
         params = (
             query.from_user.id,
             bet['date'],
-            ','.join(bet['markets']),  # 记录所有市场
+            ','.join(bet['markets']),
             bet['number'],
             bet['type'],
             bet.get('mode'),
@@ -84,23 +90,32 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         if USE_PG:
             sql = (
-                "INSERT INTO bets (agent_id,bet_date,market,number,bet_type,mode,amount,potential_win,commission,code)"
-                " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                "INSERT INTO bets "
+                "(agent_id,bet_date,market,number,bet_type,mode,amount,potential_win,commission,code) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             )
         else:
             sql = (
-                "INSERT INTO bets (agent_id,bet_date,market,number,bet_type,mode,amount,potential_win,commission,code)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?)"
+                "INSERT INTO bets "
+                "(agent_id,bet_date,market,number,bet_type,mode,amount,potential_win,commission,code) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)"
             )
         cursor.execute(sql, params)
     conn.commit()
 
-    # 清除按钮，发送成功提示
-    await query.edit_message_text(
-        f"✅ 下注成功！\nCode：{delete_code}\n如需删除，请使用：/delete {delete_code}"
+    # 5. 移除原消息的确认按钮，但保留原文案
+    await query.edit_message_reply_markup(reply_markup=None)
+
+    # 6. 发送新的成功提示消息
+    await query.message.reply_text(
+        f"✅ 下注成功！\n"
+        f"Code：{delete_code}\n"
+        f"如需删除，请使用：/delete {delete_code}"
     )
 
+    # 7. 清空缓存
     context.user_data.pop('pending_bets', None)
+
 
 async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
