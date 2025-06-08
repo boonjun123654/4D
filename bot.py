@@ -278,7 +278,7 @@ def main():
     app = ApplicationBuilder().token(token).build()
 
     # Handlers
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_bet_text))
+    app.add_handler( MessageHandler( filters.TEXT & ~filters.Regex(r'^/'), handle_bet_text)) 
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
     app.add_handler(CommandHandler('delete', cmd_delete))
     app.add_handler(CommandHandler('commission', cmd_commission))
