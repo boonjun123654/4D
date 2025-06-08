@@ -1,6 +1,6 @@
 import psycopg2
 from parser import get_box_multiplier
-from db import get_conn
+from db_conn import get_conn
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 from dotenv import load_dotenv
