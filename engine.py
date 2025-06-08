@@ -70,12 +70,23 @@ def calculate(bets: List[Dict]) -> Dict:
             stake_per_market = amt
 
         # 3. 单市场最大可赢（potential_per_market）
-        std_odds = STANDARD_ODDS[markets[0]][btype]
+        if "H" in markets:
+            odds_market = "H"
+        elif "L" in markets:
+            odds_market = "L"
+        else:
+            odds_market = "M"
+        std_odds = STANDARD_ODDS[odds_market][btype]
+
         if mode == "ibox":
             # ibox：赔率按组合数平均
             potential_per_market = std_odds / comb * amt
+        elif mode == "box":
+            # box：虽支付全排列的金额（stake_per_market），
+            #     但赢奖仅按原下注额计算
+            potential_per_market = std_odds * amt
         else:
-            # 普通 or box：赔率不变（box 已在 stake 里体现乘数）
+            # 普通模式：按实际下在每市的金额计算
             potential_per_market = std_odds * stake_per_market
 
         # 4. 多市场累加
