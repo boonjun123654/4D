@@ -43,7 +43,7 @@ def init_db():
 
 # 储存下注
 def save_bets(user_id, bets):
-    cursor() as cur:
+    with conn.cursor() as cur:
             for b in bets:
                 cur.execute("""
                 INSERT INTO bets (user_id, date, market, number, bet_type, amount, box_type, created_at)
