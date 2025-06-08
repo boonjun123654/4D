@@ -106,14 +106,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
 
-    if query.data == "confirm_bet":
-        if user_id not in temp_bets:
-            await query.edit_message_text("❌ 无可确认的下注记录。请重新发送格式。")
-            return
-        save_bets(user_id, temp_bets[user_id])
-        del temp_bets[user_id]
-        await query.edit_message_text("✅ 成功记录下注！")
-
 async def set_win_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if not is_owner(user_id):
@@ -169,7 +161,6 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("setwin", set_win_numbers))
-    app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(CallbackQueryHandler(confirm_bet, pattern="^confirm_bet$"))
 
