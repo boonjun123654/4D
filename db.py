@@ -67,8 +67,10 @@ def save_bets(user_id, bets):
                 number = b.get("number")
 
                 # 处理 box/ibox 模式的金额
-                if box_type == "box":
-                    amount *= get_box_multiplier(number)
+                amount = b["amount"]
+                if b["box_type"] == "box":
+                    multiplier = get_box_multiplier(b["number"])
+                    amount *= multiplier
                 elif box_type == "ibox":
                     amount = round(amount / get_box_multiplier(number), 2)
 
