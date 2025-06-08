@@ -88,6 +88,10 @@ def parse_bet_text(text: str, default_year: int = 2025) -> List[Dict]:
             m_full = re.match(r"^(\d{1,4})-(\d+)([BSAC])$", tok, re.IGNORECASE)
             if m_full:
                 num, amt, t = m_full.groups()
+
+                if mode and t.upper() not in ("B", "S"):
+                    raise ValueError(f"模式“{mode}”只能用于 B/S 类型下注，无法用于 {t.upper()}。")
+
                 current_number = num.zfill(4)
                 bets.append({
                     "date": date_str,
