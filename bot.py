@@ -51,10 +51,46 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await cmd_history(update, context)
     elif task == "commission":
         await cmd_commission(update, context)
-    elif task == "delete":
-        await query.message.reply_text("请输入你要删除的 Code，例如：/delete 250608ABC")
+    elif data == "task:delete":
+        user_id = query.from_user.id
+        recent_codes = db.get_recent_bet_codes(user_id, limit=5)
+
+        if not recent_codes:
+            await query.message.reply_text("你最近没有下注记录。")
+            return
+
+        keyboard = []
+        for code in recent_codes:
+            keyboard.append([
+                InlineKeyboardButton(f"删除 {code}", callback_data=f"delete_code:{code}")
+            ])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text("请选择要删除的下注 Code：", reply_markup=reply_markup)
+
+    elif data.startswith("delete_code:"):
+        code = data.split(":")[1]
+        success = db.delete_bet_and_commission(code)
+
+        if success:
+            await query.message.reply_text(f"✅ 已成功删除下注 Code：{code}")
+        else:
+            await query.message.reply_text(f"⚠️ 删除失败，可能该 code 不存在或已删除。")
 
     await query.answer()
+
+def get_recent_bet_codes(user_id, limit=5):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT code FROM bets
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+    """, (user_id, limit))
+    rows = c.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
 
 
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
