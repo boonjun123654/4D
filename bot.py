@@ -51,7 +51,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await cmd_history(update, context)
     elif task == "commission":
         await cmd_commission(update, context)
-    elif data == "delete":
+    elif task == "delete":
         user_id = query.from_user.id
         recent_codes = db.get_recent_bet_codes(user_id, limit=10)
 
