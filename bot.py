@@ -31,15 +31,14 @@ logger = logging.getLogger(__name__)
 # 判断是否使用 Postgres 参数风格
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
-@dp.message_handler(commands=["task"])
-async def handle_task_menu(message: types.Message):
-    keyboard = InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        InlineKeyboardButton("📜 历史记录", callback_data="task:history:0"),  # 页码从 0 开始
-        InlineKeyboardButton("💰 佣金报表", callback_data="task:commission"),
-        InlineKeyboardButton("🗑️ 删除下注", callback_data="task:delete")
-    )
-    await message.reply("📌 请选择任务操作：", reply_markup=keyboard)
+async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📜 历史记录", callback_data="task:history")],
+        [InlineKeyboardButton("💰 佣金报表", callback_data="task:commission")],
+        [InlineKeyboardButton("🗑️ 删除下注", callback_data="task:delete")]
+    ])
+    await update.message.reply_text("📌 请选择任务操作：", reply_markup=keyboard)
+
 
 @dp.callback_query_handler(lambda c: c.data.startswith("task:"))
 PAGE_SIZE = 5
@@ -251,8 +250,11 @@ def main():
     # Handlers
     app.add_handler( MessageHandler( filters.TEXT & ~filters.Regex(r'^/'), handle_bet_text)) 
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
-    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^(task|history_page|delete_code):"))
-    
+    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^task:"))
+    app.add_handler(CallbackQueryHandler(handle_history_pagination, pattern="^history_page:"))
+    app.add_handler(CallbackQueryHandler(handle_delete_code, pattern="^delete_code:"))
+    app.add_handler(CommandHandler("task", handle_task_menu))
+
     app.run_polling()
 
 if __name__ == '__main__':
