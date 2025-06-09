@@ -30,43 +30,6 @@ logger = logging.getLogger(__name__)
 # 判断是否使用 Postgres 参数风格
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
-async def show_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [
-            InlineKeyboardButton("📜 历史记录", callback_data="task:history"),
-            InlineKeyboardButton("💰 佣金报表", callback_data="task:commission")
-        ],
-        [
-            InlineKeyboardButton("🗑 删除下注", callback_data="task:delete")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("🔧 请选择你要执行的任务：", reply_markup=reply_markup)
-
-async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    task = query.data.split(":")[1]
-
-    if task == "history":
-        await cmd_history(update, context)
-    elif task == "commission":
-        await cmd_commission(update, context)
-    elif task == "delete":
-        user_id = query.from_user.id
-        recent_codes = db.get_recent_bet_codes(user_id, limit=10)
-
-        if not recent_codes:
-            await query.message.reply_text("你最近没有下注记录。")
-            return
-
-        keyboard = []
-        for code in recent_codes:
-            keyboard.append([
-                InlineKeyboardButton(f"删除 {code}", callback_data=f"delete_code:{code}")
-            ])
-
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_text("请选择要删除的下注 Code：", reply_markup=reply_markup)
 
 def get_recent_bet_codes(user_id, limit=5):
     conn = get_connection()
@@ -171,165 +134,6 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # 7. 清空缓存
     context.user_data.pop('pending_bets', None)
 
-
-async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    if not args:
-        await update.message.reply_text("请提供删除 Code，例如：/delete 250608ABC")
-        return
-
-    code = args[0]
-
-    # 先检查是否存在该注单
-    if USE_PG:
-        cursor.execute("SELECT COUNT(*) FROM bets WHERE code = %s", (code,))
-    else:
-        cursor.execute("SELECT COUNT(*) FROM bets WHERE code = ?", (code,))
-    count = cursor.fetchone()[0]
-
-    if not count:
-        await update.message.reply_text(f"⚠️ 未找到对应 Code 的下注记录。")
-        return
-
-    # 删除下注 + 删除佣金
-    if USE_PG:
-        cursor.execute("DELETE FROM bets WHERE code = %s", (code,))
-        cursor.execute("DELETE FROM commissions WHERE code = %s", (code,))
-    else:
-        cursor.execute("DELETE FROM bets WHERE code = ?", (code,))
-        cursor.execute("DELETE FROM commissions WHERE code = ?", (code,))
-    conn.commit()
-
-    await update.message.reply_text("✅ 注单记录及佣金已删除。")
-
-async def handle_delete_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    code = query.data.split(":")[1]
-
-    # 删除下注与佣金（复用你已有逻辑）
-    if USE_PG:
-        cursor.execute("DELETE FROM bets WHERE code = %s", (code,))
-        cursor.execute("DELETE FROM commissions WHERE code = %s", (code,))
-    else:
-        cursor.execute("DELETE FROM bets WHERE code = ?", (code,))
-        cursor.execute("DELETE FROM commissions WHERE code = ?", (code,))
-    conn.commit()
-
-    await query.message.reply_text(f"✅ 已成功删除下注 Code: {code}")
-    await query.answer()
-
-async def cmd_commission(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    /commission
-    显示最近 7 天（含今天）每天的下注总额与佣金总额。
-    """
-    # 计算起始日期（7 天前）
-    start_date = date.today() - timedelta(days=6)
-
-    if USE_PG:
-        # Postgres：market 列是逗号分隔的市场字符串
-        sql = """
-        SELECT
-          bet_date,
-          SUM(array_length(string_to_array(market, ','), 1) * amount)::numeric AS total_amount,
-          SUM(array_length(string_to_array(market, ','), 1) * commission)::numeric AS total_commission
-        FROM bets
-        WHERE bet_date >= %s
-        GROUP BY bet_date
-        ORDER BY bet_date DESC;
-        """
-        cursor.execute(sql, (start_date,))
-    else:
-        # SQLite：用 LENGTH 和 REPLACE 计算逗号数 + 1
-        sql = """
-        SELECT
-          bet_date,
-          SUM((LENGTH(market) - LENGTH(REPLACE(market, ',', '')) + 1) * amount) AS total_amount,
-          SUM((LENGTH(market) - LENGTH(REPLACE(market, ',', '')) + 1) * commission) AS total_commission
-        FROM bets
-        WHERE date(bet_date) >= date('now', '-6 days')
-        GROUP BY bet_date
-        ORDER BY bet_date DESC;
-        """
-        cursor.execute(sql)
-
-    rows = cursor.fetchall()
-    if not rows:
-        await update.message.reply_text("最近 7 天内没有下注记录。")
-        return
-
-    # 格式化输出
-    lines = []
-    for bet_date, total_amt, total_com in rows:
-        # bet_date 在 Postgres 下是 date 对象，在 SQLite 下可能是字符串
-        if isinstance(bet_date, str):
-            display_date = datetime.strptime(bet_date, "%Y-%m-%d").strftime("%d/%m")
-        else:
-            display_date = bet_date.strftime("%d/%m")
-        lines.append(f"{display_date}：总额 RM{float(total_amt):.2f} / 佣金 RM{float(total_com):.2f}")
-
-    await update.message.reply_text("\n".join(lines))
-
-async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    /history
-    列出最近 7 天按日期分组的所有下注明细，Markdown 格式输出。
-    """
-    # 1. 计算查询起始日期
-    start_date = date.today() - timedelta(days=6)
-
-    # 2. 拉取数据
-    if USE_PG:
-        sql = """
-        SELECT bet_date, market, number, bet_type, mode,
-               amount, potential_win, commission, code
-          FROM bets
-         WHERE bet_date >= %s
-         ORDER BY bet_date DESC, created_at;
-        """
-        cursor.execute(sql, (start_date,))
-    else:
-        sql = """
-        SELECT bet_date, market, number, bet_type, mode,
-               amount, potential_win, commission, code
-          FROM bets
-         WHERE date(bet_date) >= date('now', '-6 days')
-         ORDER BY bet_date DESC, created_at;
-        """
-        cursor.execute(sql)
-
-    rows = cursor.fetchall()
-    if not rows:
-        await update.message.reply_text("最近 7 天内没有下注记录。")
-        return
-
-    # 3. 分组整理
-    grouped = defaultdict(list)
-    for row in rows:
-        bet_date, market, number, bet_type, mode, amount, potential, com, code = row
-        # 统一格式化日期为 DD/MM
-        if isinstance(bet_date, str):
-            dt = datetime.strptime(bet_date, "%Y-%m-%d")
-        else:
-            dt = bet_date
-        disp_date = dt.strftime("%d/%m")
-        grouped[disp_date].append((market, number, bet_type, mode, amount, potential, com, code))
-
-    # 4. 构造 Markdown 文本
-    lines = []
-    for disp_date in sorted(grouped.keys(), reverse=True):
-        lines.append(f"*{disp_date}*")  # 日期标题
-        for market, number, bet_type, mode, amount, potential, com, code in grouped[disp_date]:
-            mode_txt = f" {mode.upper()}" if mode else ""
-            lines.append(
-                f"- `{market}`: `{number}-{amount}{bet_type}{mode_txt}`  │  "
-                f"Win: RM{float(potential):.2f}  │  Com: RM{float(com):.2f}  │  `Code: {code}`"
-            )
-        lines.append("")  # 每个日期后留一空行
-
-    text = "\n".join(lines).strip()
-    await update.message.reply_text(text, parse_mode="Markdown")
-
 def main():
 
     token = os.getenv('BOT_TOKEN')
@@ -339,14 +143,8 @@ def main():
     app = ApplicationBuilder().token(token).build()
 
     # Handlers
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^任务$"), show_task_menu))
-    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern=r"^task:"))
     app.add_handler( MessageHandler( filters.TEXT & ~filters.Regex(r'^/'), handle_bet_text)) 
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
-    app.add_handler(CommandHandler('delete', cmd_delete))
-    app.add_handler(CommandHandler('commission', cmd_commission))
-    app.add_handler(CommandHandler('history', cmd_history))
-    app.add_handler(CallbackQueryHandler(handle_delete_code, pattern="^delete_code:"))
     
     app.run_polling()
 
