@@ -213,6 +213,22 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("✅ 注单记录及佣金已删除。")
 
+async def handle_delete_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    code = query.data.split(":")[1]
+
+    # 删除下注与佣金（复用你已有逻辑）
+    if USE_PG:
+        cursor.execute("DELETE FROM bets WHERE code = %s", (code,))
+        cursor.execute("DELETE FROM commissions WHERE code = %s", (code,))
+    else:
+        cursor.execute("DELETE FROM bets WHERE code = ?", (code,))
+        cursor.execute("DELETE FROM commissions WHERE code = ?", (code,))
+    conn.commit()
+
+    await query.message.reply_text(f"✅ 已成功删除下注 Code: {code}")
+    await query.answer()
+
 async def cmd_commission(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /commission
@@ -341,6 +357,7 @@ def main():
     app.add_handler(CommandHandler('delete', cmd_delete))
     app.add_handler(CommandHandler('commission', cmd_commission))
     app.add_handler(CommandHandler('history', cmd_history))
+    app.add_handler(CallbackQueryHandler(handle_delete_code, pattern="^delete_code:"))
     
     app.run_polling()
 
