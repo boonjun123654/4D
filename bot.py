@@ -128,7 +128,6 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.message.reply_text(
         f"✅ 下注成功！\n"
         f"Code：{delete_code}\n"
-        f"如需删除，请使用：/delete {delete_code}"
     )
 
     # 7. 清空缓存
