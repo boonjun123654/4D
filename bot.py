@@ -39,9 +39,8 @@ async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
     await update.message.reply_text("📌 请选择任务操作：", reply_markup=keyboard)
 
-
-@dp.callback_query_handler(lambda c: c.data.startswith("task:"))
 PAGE_SIZE = 5
+@dp.callback_query_handler(lambda c: c.data.startswith("task:"))
 
 async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
