@@ -5,6 +5,7 @@ import random
 import string
 import threading
 from collections import defaultdict
+from db import get_commission_report_pg
 from telegram.constants import ParseMode
 from datetime import date, timedelta, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -95,6 +96,24 @@ async def show_bet_history(callback_query: types.CallbackQuery, page: int):
         keyboard.row(*buttons)
 
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+
+async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    task = query.data.split(":")[1]
+
+    if task == "commission":
+        user_id = query.from_user.id
+        rows = db.get_commission_summary(user_id)
+
+        if not rows:
+            await query.message.reply_text("你最近7天没有下注记录。")
+        else:
+            text = "📊 <b>最近7天佣金报表</b>\n\n"
+            for day, amount, commission in rows:
+                text += f"{day}：总额 RM{amount:.2f} / 佣金 RM{commission:.2f}\n"
+            await query.message.reply_text(text, parse_mode="HTML")
+
+    await query.answer()
 
 def get_recent_bet_codes(user_id, limit=5):
     conn = get_connection()
