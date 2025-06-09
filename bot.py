@@ -125,22 +125,30 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not args:
         await update.message.reply_text("请提供删除 Code，例如：/delete 250608ABC")
         return
+
     code = args[0]
-    # 查询并删除
+
+    # 先检查是否存在该注单
     if USE_PG:
         cursor.execute("SELECT COUNT(*) FROM bets WHERE code = %s", (code,))
     else:
         cursor.execute("SELECT COUNT(*) FROM bets WHERE code = ?", (code,))
     count = cursor.fetchone()[0]
+
     if not count:
-        await update.message.reply_text("⚠️ 未找到该 Code 对应的下注记录。")
+        await update.message.reply_text(f"⚠️ 未找到对应 Code 的下注记录。")
         return
+
+    # 删除下注 + 删除佣金
     if USE_PG:
         cursor.execute("DELETE FROM bets WHERE code = %s", (code,))
+        cursor.execute("DELETE FROM commissions WHERE code = %s", (code,))
     else:
         cursor.execute("DELETE FROM bets WHERE code = ?", (code,))
+        cursor.execute("DELETE FROM commissions WHERE code = ?", (code,))
     conn.commit()
-    await update.message.reply_text("✅ 下注记录已删除。")
+
+    await update.message.reply_text("✅ 注单记录及佣金已删除。")
 
 async def cmd_commission(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
