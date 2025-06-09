@@ -96,8 +96,8 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             await query.message.reply_text(f"⚠️ 刪除失敗，該 code 不存在或已刪除。")
 
-async def show_bet_history(callback_query: types.CallbackQuery, page: int):
-    user_id = callback_query.from_user.id
+async def show_bet_history_page(callback_query: types.CallbackQuery, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    page = context.user_data.get("history_page", 0)
     bets_per_page = 5
     offset = page * bets_per_page
 
