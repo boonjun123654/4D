@@ -4,7 +4,6 @@ import logging
 import random
 import string
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from collections import defaultdict
 from telegram.constants import ParseMode
 from datetime import date, timedelta, datetime
