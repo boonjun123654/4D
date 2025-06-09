@@ -248,9 +248,7 @@ def main():
     # Handlers
     app.add_handler( MessageHandler( filters.TEXT & ~filters.Regex(r'^/'), handle_bet_text)) 
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
-    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^task:"))
-    app.add_handler(CallbackQueryHandler(handle_history_page, pattern="^history_page:"))
-    app.add_handler(CallbackQueryHandler(handle_delete_code, pattern="^delete_code:"))
+    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^(task|history_page|delete_code:)"))
     app.add_handler(CommandHandler("task", handle_task_menu))
 
     app.run_polling()
