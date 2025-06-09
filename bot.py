@@ -30,6 +30,71 @@ logger = logging.getLogger(__name__)
 # 判断是否使用 Postgres 参数风格
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
+@dp.message_handler(commands=["task"])
+async def handle_task_menu(message: types.Message):
+    keyboard = InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        InlineKeyboardButton("📜 历史记录", callback_data="task:history:0"),  # 页码从 0 开始
+        InlineKeyboardButton("💰 佣金报表", callback_data="task:commission"),
+        InlineKeyboardButton("🗑️ 删除下注", callback_data="task:delete")
+    )
+    await message.reply("📌 请选择任务操作：", reply_markup=keyboard)
+
+@dp.callback_query_handler(lambda c: c.data.startswith("task:"))
+async def handle_task_buttons(callback_query: types.CallbackQuery):
+    data = callback_query.data.split(":")
+    action = data[1]
+
+    if action == "history":
+        page = int(data[2])
+        await show_bet_history(callback_query, page)
+
+    elif action == "commission":
+        await show_commission_report(callback_query)
+
+    elif action == "delete":
+        await prompt_delete_code(callback_query)
+
+async def show_bet_history(callback_query: types.CallbackQuery, page: int):
+    user_id = callback_query.from_user.id
+    bets_per_page = 5
+    offset = page * bets_per_page
+
+    # 从数据库读取最近7天下注记录
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=7)
+    all_bets = db.get_bet_history(user_id, start_date, end_date)
+
+    if not all_bets:
+        await callback_query.message.edit_text("❗️你在最近 7 天没有下注记录。")
+        return
+
+    total_pages = (len(all_bets) - 1) // bets_per_page + 1
+    current_bets = all_bets[offset:offset + bets_per_page]
+
+    text = "📜 <b>下注记录（最近7天）</b>\n\n"
+    for bet in current_bets:
+        text += (
+            f"📅 {bet['date']}\n"
+            f"🔢 Code: <code>{bet['code']}</code>\n"
+            f"🎯 内容: {bet['content']}\n"
+            f"💸 金额: RM{bet['amount']:.2f}\n"
+            f"----------------------\n"
+        )
+    
+    # 分页按钮
+    keyboard = InlineKeyboardMarkup()
+    buttons = []
+
+    if page > 0:
+        buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"task:history:{page - 1}"))
+    if offset + bets_per_page < len(all_bets):
+        buttons.append(InlineKeyboardButton("➡️ 下一页", callback_data=f"task:history:{page + 1}"))
+
+    if buttons:
+        keyboard.row(*buttons)
+
+    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 def get_recent_bet_codes(user_id, limit=5):
     conn = get_connection()
