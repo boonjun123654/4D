@@ -119,5 +119,23 @@ def get_commission_summary(user_id):
 
     return rows
 
+def delete_bet_and_commission(code: str) -> bool:
+    try:
+        c = conn.cursor()
+        # 检查是否存在该下注
+        c.execute("SELECT COUNT(*) FROM bets WHERE code = %s" if USE_PG else "SELECT COUNT(*) FROM bets WHERE code = ?", (code,))
+        exists = c.fetchone()[0]
+        if not exists:
+            return False
+
+        # 执行删除
+        c.execute("DELETE FROM bets WHERE code = %s" if USE_PG else "DELETE FROM bets WHERE code = ?", (code,))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"删除下注出错: {e}")
+        return False
+
+
 # 导出连接和游标
 __all__ = ["conn", "cursor"]
