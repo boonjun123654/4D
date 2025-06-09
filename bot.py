@@ -30,19 +30,6 @@ logger = logging.getLogger(__name__)
 # 判断是否使用 Postgres 参数风格
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
-class HealthHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        # 所有 GET 请求都返回 200 OK + "OK"
-        self.send_response(200)
-        self.send_header("Content-type", "text/plain; charset=utf-8")
-        self.end_headers()
-        self.wfile.write(b"OK")
-
-def run_health_server():
-    port = int(os.getenv("PORT", 5000))
-    server = HTTPServer(("0.0.0.0", port), HealthHandler)
-    server.serve_forever()
-
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     try:
