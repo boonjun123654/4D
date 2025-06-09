@@ -42,19 +42,59 @@ async def handle_task_menu(message: types.Message):
     await message.reply("📌 请选择任务操作：", reply_markup=keyboard)
 
 @dp.callback_query_handler(lambda c: c.data.startswith("task:"))
-async def handle_task_buttons(callback_query: types.CallbackQuery):
-    data = callback_query.data.split(":")
-    action = data[1]
+PAGE_SIZE = 5
 
-    if action == "history":
-        page = int(data[2])
-        await show_bet_history(callback_query, page)
+async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    user_id = query.from_user.id
 
-    elif action == "commission":
-        await show_commission_report(callback_query)
+    await query.answer()
 
-    elif action == "delete":
-        await prompt_delete_code(callback_query)
+    if data == "task:history":
+        # 初始化頁面為第0頁
+        context.user_data["history_page"] = 0
+        await show_bet_history_page(query, context, user_id)
+
+    elif data == "task:commission":
+        today = datetime.now().date()
+        start_date = today - timedelta(days=6)
+        rows = db.get_commission_summary(user_id, start_date, today)
+
+        if not rows:
+            await query.message.reply_text("⚠️ 沒有找到最近7天的佣金記錄。")
+            return
+
+        lines = ["📊 佣金報表 (最近7天)\n"]
+        for row in rows:
+            lines.append(f"{row['day']}：總額 RM{row['total_amount']:.2f} / 傭金 RM{row['total_commission']:.2f}")
+        await query.message.reply_text("\n".join(lines))
+
+    elif data == "task:delete":
+        recent_codes = db.get_recent_bet_codes(user_id, limit=5)
+        if not recent_codes:
+            await query.message.reply_text("⚠️ 你最近沒有下注記錄。")
+            return
+
+        keyboard = [
+            [InlineKeyboardButton(f"❌ 刪除 {code}", callback_data=f"delete_code:{code}")]
+            for code in recent_codes
+        ]
+        await query.message.reply_text("請選擇要刪除的下注 Code：", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data.startswith("history_page:"):
+        # 處理上一頁/下一頁點擊
+        page = int(data.split(":")[1])
+        context.user_data["history_page"] = page
+        await show_bet_history_page(query, context, user_id)
+
+    elif data.startswith("delete_code:"):
+        code = data.split(":")[1]
+        success = db.delete_bet_and_commission(code)
+        if success:
+            await query.message.reply_text(f"✅ 已成功刪除下注 Code: {code}")
+        else:
+            await query.message.reply_text(f"⚠️ 刪除失敗，該 code 不存在或已刪除。")
 
 async def show_bet_history(callback_query: types.CallbackQuery, page: int):
     user_id = callback_query.from_user.id
@@ -97,23 +137,6 @@ async def show_bet_history(callback_query: types.CallbackQuery, page: int):
 
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
 
-async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    task = query.data.split(":")[1]
-
-    if task == "commission":
-        user_id = query.from_user.id
-        rows = db.get_commission_summary(user_id)
-
-        if not rows:
-            await query.message.reply_text("你最近7天没有下注记录。")
-        else:
-            text = "📊 <b>最近7天佣金报表</b>\n\n"
-            for day, amount, commission in rows:
-                text += f"{day}：总额 RM{amount:.2f} / 佣金 RM{commission:.2f}\n"
-            await query.message.reply_text(text, parse_mode="HTML")
-
-    await query.answer()
 
 def get_recent_bet_codes(user_id, limit=5):
     conn = get_connection()
@@ -228,6 +251,7 @@ def main():
     # Handlers
     app.add_handler( MessageHandler( filters.TEXT & ~filters.Regex(r'^/'), handle_bet_text)) 
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
+    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^(task|history_page|delete_code):"))
     
     app.run_polling()
 
