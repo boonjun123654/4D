@@ -68,17 +68,6 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.reply_text("请选择要删除的下注 Code：", reply_markup=reply_markup)
 
-    elif data.startswith("delete_code:"):
-        code = data.split(":")[1]
-        success = db.delete_bet_and_commission(code)
-
-        if success:
-            await query.message.reply_text(f"✅ 已成功删除下注 Code：{code}")
-        else:
-            await query.message.reply_text(f"⚠️ 删除失败，可能该 code 不存在或已删除。")
-
-    await query.answer()
-
 def get_recent_bet_codes(user_id, limit=5):
     conn = get_connection()
     c = conn.cursor()
