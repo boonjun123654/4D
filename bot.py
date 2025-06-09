@@ -256,7 +256,6 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
 
-    threading.Thread(target=run_health_server, daemon=True).start()
     token = os.getenv('BOT_TOKEN')
     if not token:
         logger.error('BOT_TOKEN 未设置')
