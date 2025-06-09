@@ -30,6 +30,33 @@ logger = logging.getLogger(__name__)
 # 判断是否使用 Postgres 参数风格
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
+async def show_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("📜 历史记录", callback_data="task:history"),
+            InlineKeyboardButton("💰 佣金报表", callback_data="task:commission")
+        ],
+        [
+            InlineKeyboardButton("🗑 删除下注", callback_data="task:delete")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("🔧 请选择你要执行的任务：", reply_markup=reply_markup)
+
+async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    task = query.data.split(":")[1]
+
+    if task == "history":
+        await cmd_history(update, context)
+    elif task == "commission":
+        await cmd_commission(update, context)
+    elif task == "delete":
+        await query.message.reply_text("请输入你要删除的 Code，例如：/delete 250608ABC")
+
+    await query.answer()
+
+
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     try:
@@ -276,6 +303,8 @@ def main():
     app.add_handler(CommandHandler('delete', cmd_delete))
     app.add_handler(CommandHandler('commission', cmd_commission))
     app.add_handler(CommandHandler('history', cmd_history))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r"^任务$"), show_task_menu))
+    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern=r"^task:"))
 
     app.run_polling()
 
