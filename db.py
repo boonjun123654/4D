@@ -87,20 +87,36 @@ def get_bet_history(user_id, start_date, end_date):
         for row in rows
     ]
 
-def get_commission_report_pg(user_id):
-    conn = psycopg2.connect(DATABASE_URL)
+def get_commission_summary(user_id):
+    conn = get_connection()
     c = conn.cursor()
-    c.execute("""
-        SELECT TO_CHAR(date, 'DD/MM') AS day,
-               SUM(amount),
-               SUM(commission)
-        FROM bets
-        WHERE user_id = %s AND date >= CURRENT_DATE - INTERVAL '6 days'
-        GROUP BY day
-        ORDER BY day
-    """, (user_id,))
+
+    if USE_PG:
+        # PostgreSQL 版本
+        c.execute("""
+            SELECT TO_CHAR(date, 'DD/MM') AS day,
+                   SUM(amount),
+                   SUM(commission)
+            FROM bets
+            WHERE user_id = %s AND date >= CURRENT_DATE - INTERVAL '6 days'
+            GROUP BY day
+            ORDER BY day
+        """, (user_id,))
+    else:
+        # SQLite 版本
+        c.execute("""
+            SELECT strftime('%d/%m', date) AS day,
+                   SUM(amount),
+                   SUM(commission)
+            FROM bets
+            WHERE user_id = ? AND date >= date('now', '-6 days')
+            GROUP BY day
+            ORDER BY day
+        """, (user_id,))
+
     rows = c.fetchall()
     conn.close()
+
     return rows
 
 # 导出连接和游标
