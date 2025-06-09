@@ -66,5 +66,42 @@ else:
 
 conn.commit()
 
+def get_bet_history(user_id, start_date, end_date):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        SELECT date, code, content, amount
+        FROM bets
+        WHERE user_id = ? AND date BETWEEN ? AND ?
+        ORDER BY date DESC, id DESC
+    """, (user_id, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
+    rows = c.fetchall()
+    conn.close()
+    return [
+        {
+            "date": row[0],
+            "code": row[1],
+            "content": row[2],
+            "amount": row[3]
+        }
+        for row in rows
+    ]
+
+def get_commission_report_pg(user_id):
+    conn = psycopg2.connect(DATABASE_URL)
+    c = conn.cursor()
+    c.execute("""
+        SELECT TO_CHAR(date, 'DD/MM') AS day,
+               SUM(amount),
+               SUM(commission)
+        FROM bets
+        WHERE user_id = %s AND date >= CURRENT_DATE - INTERVAL '6 days'
+        GROUP BY day
+        ORDER BY day
+    """, (user_id,))
+    rows = c.fetchall()
+    conn.close()
+    return rows
+
 # 导出连接和游标
 __all__ = ["conn", "cursor"]
