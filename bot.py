@@ -50,18 +50,19 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     data = query.data
     user_id = query.from_user.id
+    group_id = str(query.message.chat_id)
 
     await query.answer()
 
     if data == "task:history":
         # 初始化頁面為第0頁
         context.user_data["history_page"] = 0
-        await show_bet_history_page(query, context, user_id)
+        await show_bet_history_page(query, context, user_id, group_id)
 
     elif data == "task:commission":
         today = datetime.now().date()
         start_date = today - timedelta(days=6)
-        rows = get_commission_summary(user_id, start_date, today)
+        rows = get_commission_summary(user_id, start_date, today, group_id)
 
         if not rows:
             await query.message.reply_text("⚠️ 沒有找到最近7天的佣金記錄。")
@@ -73,7 +74,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.message.reply_text("\n".join(lines))
 
     elif data == "task:delete":
-        recent_codes = db.get_recent_bet_codes(user_id, limit=5)
+        recent_codes = get_recent_bet_codes(user_id, limit=5, group_id=group_id)
         if not recent_codes:
             await query.message.reply_text("⚠️ 你最近沒有下注記錄。")
             return
@@ -88,7 +89,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         # 處理上一頁/下一頁點擊
         page = int(data.split(":")[1])
         context.user_data["history_page"] = page
-        await show_bet_history_page(query, context, user_id)
+        await show_bet_history_page(query, context, user_id, group_id)
 
     elif data.startswith("delete_code:"):
         code = data.split(":")[1]
@@ -106,7 +107,7 @@ async def show_bet_history_page(callback_query: CallbackQuery, context: ContextT
     # 从数据库读取最近7天下注记录
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=7)
-    rows = get_bet_history(user_id, start_date, end_date)
+    rows = get_bet_history(user_id, start_date, end_date, group_id)
 
     if not all_bets:
         await callback_query.message.edit_text("❗️你在最近 7 天没有下注记录。")
