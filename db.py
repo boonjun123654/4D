@@ -82,7 +82,7 @@ def get_bet_history(user_id, start_date, end_date, group_id):
         c.execute("""
             SELECT bet_date, code, number || '-' || bet_type AS content, amount
             FROM bets
-            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
+            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
             ORDER BY bet_date DESC
         """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     rows = c.fetchall()
@@ -107,7 +107,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
             SELECT strftime('%d/%m', bet_date) AS day,
                    SUM(amount), SUM(commission)
             FROM bets
-            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
+            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
             GROUP BY day
             ORDER BY day
         """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
