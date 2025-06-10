@@ -67,12 +67,12 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         rows = get_commission_summary(user_id, start_date, today, group_id)
 
         if not rows:
-            await query.message.reply_text("⚠️ 沒有找到最近7天的佣金記錄。")
+            await query.message.reply_text("⚠️ 没有找到最近7天的佣金记录。")
             return
 
-        lines = ["📊 佣金報表 (最近7天)\n"]
+        lines = ["📊 佣金报表 (最近7天)\n"]
         for row in rows:
-            lines.append(f"{row['day']}：總額 RM{row['total_amount']:.2f} / 傭金 RM{row['total_commission']:.2f}")
+            lines.append(f"{row['day']}：总额 RM{row['total_amount']:.2f} / 佣金 RM{row['total_commission']:.2f}")
         await query.message.reply_text("\n".join(lines))
 
     elif data == "task:delete":
@@ -86,6 +86,20 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             for code in recent_codes
         ]
         await query.message.reply_text("請選擇要刪除的下注 Code：", reply_markup=InlineKeyboardMarkup(keyboard))
+
+elif data.startswith("history_page:"):
+    page = int(data.split(":", 1)[1])
+    context.user_data["history_page"] = page
+    await show_bet_history_page(query, context, user_id, group_id)
+
+elif data.startswith("delete_code:"):
+    code = data.split(":", 1)[1]
+    success = delete_bet_and_commission(code)
+    if success:
+        await query.message.reply_text(f"✅ 已成功删除下注 Code: {code}")
+    else:
+        await query.message.reply_text(f"⚠️ 删除失败，Code 不存在或已删除。")
+
 
     elif data.startswith("history_page:"):
         # 處理上一頁/下一頁點擊
@@ -102,45 +116,40 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             await query.message.reply_text(f"⚠️ 刪除失敗，該 code 不存在或已刪除。")
 
 async def show_bet_history_page(callback_query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE, user_id: int, group_id: str):
+    per_page = 5
     page = context.user_data.get("history_page", 0)
-    bets_per_page = 5
-    offset = page * bets_per_page
 
-    # 从数据库读取最近7天下注记录
+    # 时间范围：最近7天
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=7)
-    rows = get_bet_history(user_id, start_date, end_date, group_id)
+    all_bets = get_bet_history(user_id, start_date, end_date, group_id)
 
     if not all_bets:
-        await callback_query.message.edit_text("❗️你在最近 7 天没有下注记录。")
+        await callback_query.edit_message_text("❗️你在最近 7 天没有下注记录。")
         return
 
-    total_pages = (len(all_bets) - 1) // bets_per_page + 1
-    current_bets = all_bets[offset:offset + bets_per_page]
+    offset = page * per_page
+    current = all_bets[offset: offset + per_page]
 
     text = "📜 <b>下注记录（最近7天）</b>\n\n"
-    for bet in current_bets:
+    for b in current:
         text += (
-            f"📅 {bet['date']}\n"
-            f"🔢 Code: <code>{bet['code']}</code>\n"
-            f"🎯 内容: {bet['content']}\n"
-            f"💸 金额: RM{bet['amount']:.2f}\n"
-            f"----------------------\n"
+            f"📅 {b['date']}\n"
+            f"🔢 Code：<code>{b['code']}</code>\n"
+            f"🎯 内容：{b['content']}\n"
+            f"💸 金额：RM{b['amount']:.2f}\n"
+            "----------------------\n"
         )
-    
+
     # 分页按钮
-    keyboard = InlineKeyboardMarkup()
     buttons = []
-
     if page > 0:
-        buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"task:history:{page - 1}"))
-    if offset + bets_per_page < len(all_bets):
-        buttons.append(InlineKeyboardButton("➡️ 下一页", callback_data=f"task:history:{page + 1}"))
+        buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"history_page:{page-1}"))
+    if offset + per_page < len(all_bets):
+        buttons.append(InlineKeyboardButton("➡️ 下一页", callback_data=f"history_page:{page+1}"))
 
-    if buttons:
-        keyboard.row(*buttons)
-
-    await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
+    reply_markup = InlineKeyboardMarkup([buttons]) if buttons else None
+    await callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
 
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
