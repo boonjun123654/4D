@@ -68,88 +68,73 @@ else:
 
 conn.commit()
 
-def get_bet_history(user_id, start_date, end_date):
-    conn = sqlite3.connect(DB_PATH)
+def get_bet_history(user_id, start_date, end_date, group_id):
     c = conn.cursor()
-    c.execute("""
-        SELECT date, code, content, amount
-        FROM bets
-        WHERE user_id = ? AND date BETWEEN ? AND ?
-        ORDER BY date DESC, id DESC
-    """, (user_id, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
+    if USE_PG:
+        c.execute("""
+            SELECT bet_date, code, number || '-' || bet_type AS content, amount
+            FROM bets
+            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
+            ORDER BY bet_date DESC
+        """, (user_id, group_id, start_date, end_date))
+    else:
+        c.execute("""
+            SELECT bet_date, code, number || '-' || bet_type AS content, amount
+            FROM bets
+            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
+            ORDER BY bet_date DESC
+        """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     rows = c.fetchall()
-    conn.close()
     return [
-        {
-            "date": row[0],
-            "code": row[1],
-            "content": row[2],
-            "amount": row[3]
-        }
-        for row in rows
+        {"date": r[0], "code": r[1], "content": r[2], "amount": r[3]}
+        for r in rows
     ]
 
-def get_commission_summary(user_id):
-    conn = get_connection()
+def get_commission_summary(user_id, start_date, end_date, group_id):
     c = conn.cursor()
-
     if USE_PG:
-        # PostgreSQL 版本
         c.execute("""
-            SELECT TO_CHAR(date, 'DD/MM') AS day,
-                   SUM(amount),
-                   SUM(commission)
+            SELECT TO_CHAR(bet_date, 'DD/MM') AS day,
+                   SUM(amount), SUM(commission)
             FROM bets
-            WHERE user_id = %s AND date >= CURRENT_DATE - INTERVAL '6 days'
+            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
             GROUP BY day
             ORDER BY day
-        """, (user_id,))
+        """, (user_id, group_id, start_date, end_date))
     else:
-        # SQLite 版本
         c.execute("""
-            SELECT strftime('%d/%m', date) AS day,
-                   SUM(amount),
-                   SUM(commission)
+            SELECT strftime('%d/%m', bet_date) AS day,
+                   SUM(amount), SUM(commission)
             FROM bets
-            WHERE user_id = ? AND date >= date('now', '-6 days')
+            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
             GROUP BY day
             ORDER BY day
-        """, (user_id,))
-
+        """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     rows = c.fetchall()
-    conn.close()
+    return [
+        {"day": r[0], "total_amount": r[1], "total_commission": r[2]}
+        for r in rows
+    ]
 
-    return rows
 
-def delete_bet_and_commission(code: str) -> bool:
-    try:
-        c = conn.cursor()
-        # 检查是否存在该下注
-        c.execute("SELECT COUNT(*) FROM bets WHERE code = %s" if USE_PG else "SELECT COUNT(*) FROM bets WHERE code = ?", (code,))
-        exists = c.fetchone()[0]
-        if not exists:
-            return False
-
-        # 执行删除
-        c.execute("DELETE FROM bets WHERE code = %s" if USE_PG else "DELETE FROM bets WHERE code = ?", (code,))
-        conn.commit()
-        return True
-    except Exception as e:
-        print(f"删除下注出错: {e}")
-        return False
-
-def get_recent_bet_codes(user_id, limit=5):
-    conn = get_connection()
+def get_recent_bet_codes(user_id, limit=5, group_id=None):
     c = conn.cursor()
-    c.execute("""
-        SELECT code FROM bets
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-        LIMIT ?
-    """, (user_id, limit))
+    if group_id:
+        query = """
+            SELECT code FROM bets
+            WHERE agent_id = ? AND group_id = ?
+            ORDER BY created_at DESC LIMIT ?
+        """
+        c.execute(query, (user_id, group_id, limit))
+    else:
+        query = """
+            SELECT code FROM bets
+            WHERE agent_id = ?
+            ORDER BY created_at DESC LIMIT ?
+        """
+        c.execute(query, (user_id, limit))
     rows = c.fetchall()
-    conn.close()
-    return [row[0] for row in rows]
+    return [r[0] for r in rows]
 
 # 导出连接和游标
 __all__ = [
