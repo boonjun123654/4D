@@ -26,6 +26,7 @@ from db import (
     get_recent_bet_codes,
     delete_bet_and_commission
 )
+logger = logging.getLogger(__name__)
 
 # 日志配置
 logging.basicConfig(
@@ -51,6 +52,8 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     data = query.data
     user_id = query.from_user.id
     group_id = str(query.message.chat_id)
+    group_id = query.message.chat.id
+    logger.info(f"👉 任务按钮触发！user_id: {user_id}, group_id: {group_id}, data: {query.data}")
 
     await query.answer()
 
