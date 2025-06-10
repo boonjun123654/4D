@@ -181,6 +181,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     date_str = datetime.now().strftime('%y%m%d')
     rand_letters = ''.join(random.choices(string.ascii_uppercase, k=3))
     delete_code = f"{date_str}{rand_letters}"
+    group_id = query.message.chat.id
 
     # 4. 写入数据库
     USE_PG = bool(os.getenv("DATABASE_URL"))
