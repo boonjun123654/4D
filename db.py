@@ -1,5 +1,6 @@
 import os
 import sqlite3
+USE_PG = bool(os.getenv("DATABASE_URL"))
 
 # 读取环境变量，优先使用 PostgreSQL，否则降级到 SQLite 本地文件
 database_url = os.getenv("DATABASE_URL")
@@ -81,7 +82,7 @@ def get_bet_history(user_id, start_date, end_date, group_id):
         c.execute("""
             SELECT bet_date, code, number || '-' || bet_type AS content, amount
             FROM bets
-            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
+            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
             ORDER BY bet_date DESC
         """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     rows = c.fetchall()
@@ -106,7 +107,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
             SELECT strftime('%d/%m', bet_date) AS day,
                    SUM(amount), SUM(commission)
             FROM bets
-            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
+            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
             GROUP BY day
             ORDER BY day
         """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
@@ -122,15 +123,15 @@ def get_recent_bet_codes(user_id, limit=5, group_id=None):
     if group_id:
         query = """
             SELECT code FROM bets
-            WHERE agent_id = ? AND group_id = ?
-            ORDER BY created_at DESC LIMIT ?
+            WHERE agent_id = %s AND group_id = %s
+            ORDER BY created_at DESC LIMIT %s
         """
         c.execute(query, (user_id, group_id, limit))
     else:
         query = """
             SELECT code FROM bets
-            WHERE agent_id = ?
-            ORDER BY created_at DESC LIMIT ?
+            WHERE agent_id = %s
+            ORDER BY created_at DESC LIMIT %s
         """
         c.execute(query, (user_id, limit))
     rows = c.fetchall()
@@ -145,8 +146,8 @@ def delete_bet_and_commission(code):
             c.execute("DELETE FROM bets WHERE code = %s", (code,))
             c.execute("DELETE FROM commissions WHERE code = %s", (code,))
         else:
-            c.execute("DELETE FROM bets WHERE code = ?", (code,))
-            c.execute("DELETE FROM commissions WHERE code = ?", (code,))
+            c.execute("DELETE FROM bets WHERE code = %s", (code,))
+            c.execute("DELETE FROM commissions WHERE code = %s", (code,))
         conn.commit()
         return True
     except Exception as e:
