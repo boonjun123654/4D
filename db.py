@@ -138,24 +138,17 @@ def get_recent_bet_codes(user_id, limit=5, group_id=None):
     return [r[0] for r in rows]
 
 def delete_bet_and_commission(code):
-    conn = get_connection()
     c = conn.cursor()
-
     try:
         if USE_PG:
             c.execute("DELETE FROM bets WHERE code = %s", (code,))
-            c.execute("DELETE FROM commissions WHERE code = %s", (code,))
         else:
-            c.execute("DELETE FROM bets WHERE code = %s", (code,))
-            c.execute("DELETE FROM commissions WHERE code = %s", (code,))
+            c.execute("DELETE FROM bets WHERE code = ?", (code,))
         conn.commit()
         return True
     except Exception as e:
-        print("删除失败：", e)
+        logger.error(f"删除失败：{e}")
         return False
-    finally:
-        conn.close()
-
 
 # 导出连接和游标
 __all__ = ["conn", "cursor", "get_bet_history", "get_commission_summary", "get_recent_bet_codes", "delete_bet_and_commission"]
