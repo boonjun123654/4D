@@ -187,6 +187,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     for bet in bets:
         params = (
             query.from_user.id,
+            group_id,
             bet['date'],
             ','.join(bet['markets']),
             bet['number'],
@@ -200,13 +201,13 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if USE_PG:
             sql = (
                 "INSERT INTO bets "
-                "(agent_id,bet_date,market,number,bet_type,mode,amount,potential_win,commission,code) "
+                "(agent_id, bet_date, market, number, bet_type, mode,amount, potential_win, commission, code) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             )
         else:
             sql = (
                 "INSERT INTO bets "
-                "(agent_id,bet_date,market,number,bet_type,mode,amount,potential_win,commission,code) "
+                "(agent_id, bet_date, market, number, bet_type, mode,amount, potential_win, commission, code) "
                 "VALUES (?,?,?,?,?,?,?,?,?,?)"
             )
         cursor.execute(sql, params)
