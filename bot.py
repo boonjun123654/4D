@@ -139,21 +139,6 @@ async def show_bet_history_page(callback_query: CallbackQuery, context: ContextT
 
     await callback_query.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
 
-
-def get_recent_bet_codes(user_id, limit=5):
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute("""
-        SELECT code FROM bets
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-        LIMIT ?
-    """, (user_id, limit))
-    rows = c.fetchall()
-    conn.close()
-    return [row[0] for row in rows]
-
-
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     try:
