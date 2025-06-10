@@ -6,7 +6,6 @@ import string
 import threading
 from telegram import CallbackQuery
 from collections import defaultdict
-from db import get_commission_summary
 from telegram.constants import ParseMode
 from datetime import date, timedelta, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -20,7 +19,13 @@ from telegram.ext import (
 )
 from parser import parse_bet_text
 from engine import calculate
-from db import conn, cursor
+from db import (
+    conn, cursor,
+    get_commission_summary,
+    get_bet_history,
+    get_recent_bet_codes,
+    delete_bet_and_commission
+)
 
 # 日志配置
 logging.basicConfig(
@@ -56,7 +61,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif data == "task:commission":
         today = datetime.now().date()
         start_date = today - timedelta(days=6)
-        rows = db.get_commission_summary(user_id, start_date, today)
+        rows = get_commission_summary(user_id, start_date, today)
 
         if not rows:
             await query.message.reply_text("⚠️ 沒有找到最近7天的佣金記錄。")
@@ -87,7 +92,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif data.startswith("delete_code:"):
         code = data.split(":")[1]
-        success = db.delete_bet_and_commission(code)
+        success = delete_bet_and_commission(code)
         if success:
             await query.message.reply_text(f"✅ 已成功刪除下注 Code: {code}")
         else:
@@ -101,7 +106,7 @@ async def show_bet_history_page(callback_query: CallbackQuery, context: ContextT
     # 从数据库读取最近7天下注记录
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=7)
-    all_bets = db.get_bet_history(user_id, start_date, end_date)
+    rows = get_bet_history(user_id, start_date, end_date)
 
     if not all_bets:
         await callback_query.message.edit_text("❗️你在最近 7 天没有下注记录。")
