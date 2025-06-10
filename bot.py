@@ -201,14 +201,14 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if USE_PG:
             sql = (
                 "INSERT INTO bets "
-                "(agent_id, bet_date, market, number, bet_type, mode,amount, potential_win, commission, code) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             )
         else:
             sql = (
                 "INSERT INTO bets "
-                "(agent_id, bet_date, market, number, bet_type, mode,amount, potential_win, commission, code) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?)"
+                "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)"
             )
         cursor.execute(sql, params)
     conn.commit()
