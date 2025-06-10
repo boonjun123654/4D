@@ -136,6 +136,25 @@ def delete_bet_and_commission(code: str) -> bool:
         print(f"删除下注出错: {e}")
         return False
 
+def get_recent_bet_codes(user_id, limit=5):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("""
+        SELECT code FROM bets
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+    """, (user_id, limit))
+    rows = c.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
 
 # 导出连接和游标
-__all__ = ["conn", "cursor"]
+__all__ = [
+    "conn",
+    "cursor",
+    "delete_bet_and_commission",
+    "get_commission_summary",
+    "get_bet_history",
+    "get_recent_bet_codes"
+]
