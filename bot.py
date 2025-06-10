@@ -87,33 +87,18 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         ]
         await query.message.reply_text("請選擇要刪除的下注 Code：", reply_markup=InlineKeyboardMarkup(keyboard))
 
-elif data.startswith("history_page:"):
-    page = int(data.split(":", 1)[1])
-    context.user_data["history_page"] = page
-    await show_bet_history_page(query, context, user_id, group_id)
-
-elif data.startswith("delete_code:"):
-    code = data.split(":", 1)[1]
-    success = delete_bet_and_commission(code)
-    if success:
-        await query.message.reply_text(f"✅ 已成功删除下注 Code: {code}")
-    else:
-        await query.message.reply_text(f"⚠️ 删除失败，Code 不存在或已删除。")
-
-
     elif data.startswith("history_page:"):
-        # 處理上一頁/下一頁點擊
-        page = int(data.split(":")[1])
+        page = int(data.split(":", 1)[1])
         context.user_data["history_page"] = page
         await show_bet_history_page(query, context, user_id, group_id)
 
     elif data.startswith("delete_code:"):
-        code = data.split(":")[1]
+        code = data.split(":", 1)[1]
         success = delete_bet_and_commission(code)
         if success:
-            await query.message.reply_text(f"✅ 已成功刪除下注 Code: {code}")
+            await query.message.reply_text(f"✅ 已成功删除下注 Code: {code}")
         else:
-            await query.message.reply_text(f"⚠️ 刪除失敗，該 code 不存在或已刪除。")
+            await query.message.reply_text(f"⚠️ 删除失败，Code 不存在或已删除。")
 
 async def show_bet_history_page(callback_query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE, user_id: int, group_id: str):
     per_page = 5
