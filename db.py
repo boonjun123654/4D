@@ -32,6 +32,7 @@ if database_url:
         potential_win NUMERIC NOT NULL,
         commission NUMERIC NOT NULL,
         code VARCHAR(9) NOT NULL,
+        group_id TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
@@ -54,6 +55,7 @@ else:
             potential_win NUMERIC NOT NULL,
             commission NUMERIC NOT NULL,
             code VARCHAR(9) NOT NULL,
+            group_id TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
