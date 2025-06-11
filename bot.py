@@ -184,46 +184,55 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     group_id = query.message.chat.id
 
     # 4. 写入数据库
-    USE_PG = bool(os.getenv("DATABASE_URL"))
-    try:
-        for bet in bets:
-            market_str = ','.join(str(m) for m in bet['markets'])
-        params = (
-            query.from_user.id,
-            group_id,
-            bet['date'],
-            ','.join(bet['markets']),
-            bet['number'],
-            bet['type'],
-            bet.get('mode'),
-            bet['amount'],
-            bet['potential_win'],
-            bet['commission'],
-            delete_code
+    # 1. 把 USE_PG 和 sql 定义提到函数最开头（或者模块顶层就定义一次）
+    USE_PG = True  # 或者： bool(os.getenv("DATABASE_URL"))
+    if USE_PG:
+        sql = (
+            "INSERT INTO bets "
+            "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        )
+    else:
+        sql = (
+            "INSERT INTO bets "
+            "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)"
         )
 
+    # 2. 在 try 里先生成 params、再 execute
+    try:
+        for bet in bets:
+            # 把 market 列表统一转成字符串
+            market_str = ','.join(str(m) for m in bet['markets'])
+            params = (
+                query.from_user.id,
+                group_id,
+                bet['date'],
+                market_str,                  # 这里用 market_str
+                bet['number'],
+                bet['type'],
+                bet.get('mode') or '',       # 如果 mode 可能为 None，给个默认
+                bet['amount'],
+                bet['potential_win'],
+                bet['commission'],
+                delete_code
+            )
+                # 真正执行
             cursor.execute(sql, params)
+        # 3. 循环外 commit
         conn.commit()
+
     except Exception as e:
         logger.error(f"❌ 确认下注写库出错：{e}")
-        # 第二次回答，带弹窗提示
-        await query.answer(text="⚠️ 系统错误，下注失败，请稍后重试", show_alert=True)
+        # 给用户明确的失败提示
+        await query.answer(
+            text="⚠️ 系统错误，下注失败，请稍后重试",
+            show_alert=True
+        )
         return
 
-        if USE_PG:True
-            sql = (
-                "INSERT INTO bets "
-                "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-            )
-        else:
-            sql = (
-                "INSERT INTO bets "
-                "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?)"
-            )
-        cursor.execute(sql, params)
-    conn.commit()
+# 4. 成功后继续下面的 edit_message_reply_markup + reply_text...
+
 
     # 5. 移除原消息的确认按钮，但保留原文案
     await query.edit_message_reply_markup(reply_markup=None)
