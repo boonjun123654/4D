@@ -185,7 +185,9 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # 4. 写入数据库
     USE_PG = bool(os.getenv("DATABASE_URL"))
-    for bet in bets:
+    try:
+        for bet in bets:
+            market_str = ','.join(str(m) for m in bet['markets'])
         params = (
             query.from_user.id,
             group_id,
@@ -199,7 +201,16 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
             bet['commission'],
             delete_code
         )
-        if USE_PG:
+
+            cursor.execute(sql, params)
+        conn.commit()
+    except Exception as e:
+        logger.error(f"❌ 确认下注写库出错：{e}")
+        # 第二次回答，带弹窗提示
+        await query.answer(text="⚠️ 系统错误，下注失败，请稍后重试", show_alert=True)
+        return
+
+        if USE_PG:True
             sql = (
                 "INSERT INTO bets "
                 "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
