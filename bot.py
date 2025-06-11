@@ -77,16 +77,29 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.message.reply_text("\n".join(lines))
 
     elif data == "task:delete":
+        # 1. 拿最近 5 个不同的 Code
         recent_codes = get_recent_bet_codes(user_id, limit=5, group_id=group_id)
         if not recent_codes:
-            await query.message.reply_text("⚠️ 你最近沒有下注記錄。")
+            await query.message.reply_text("⚠️ 你最近没有下注记录。")
             return
 
+        # 2. 为每个 Code 生成一个“删除该 Code 下所有下注”按钮
         keyboard = [
-            [InlineKeyboardButton(f"❌ 刪除 {code}", callback_data=f"delete_code:{code}")]
+            [
+                InlineKeyboardButton(
+                    f"❌ 删除 Code:{code} （共{get_bet_count_for_code(user_id, code, group_id)} 注）",
+                    callback_data=f"delete_code:{code}"
+                )
+            ]
             for code in recent_codes
         ]
-        await query.message.reply_text("請選擇要刪除的下注 Code：", reply_markup=InlineKeyboardMarkup(keyboard))
+        # 可选：加一个返回主菜单按钮
+        keyboard.append([InlineKeyboardButton("⬅️ 返回主菜单", callback_data="task:menu")])
+
+        await query.message.reply_text(
+            "请选择要删除的下注 Code：",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
     elif data.startswith("history_page:"):
         page = int(data.split(":", 1)[1])
@@ -95,11 +108,43 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif data.startswith("delete_code:"):
         code = data.split(":", 1)[1]
-        success = delete_bet_and_commission(code)
-        if success:
-            await query.message.reply_text(f"✅ 已成功删除下注 Code: {code}")
+        # 3. 调用新方法，一次性删除该 code 下的所有下注
+        deleted_count = delete_bets_by_code(user_id, code, group_id)
+        if deleted_count > 0:
+            await query.message.reply_text(f"✅ 已删除 Code:{code} 下的所有 {deleted_count} 注单。")
         else:
-            await query.message.reply_text(f"⚠️ 删除失败，Code 不存在或已删除。")
+            await query.message.reply_text("⚠️ 删除失败，Code 不存在或已删除。")
+
+def get_bet_count_for_code(user_id, code, group_id):
+    c = conn.cursor()
+    if USE_PG:
+        c.execute(
+            "SELECT COUNT(*) FROM bets WHERE agent_id=%s AND code=%s AND group_id=%s",
+            (user_id, code, group_id)
+        )
+    else:
+        c.execute(
+            "SELECT COUNT(*) FROM bets WHERE agent_id=? AND code=? AND group_id=?",
+            (user_id, code, group_id)
+        )
+    return c.fetchone()[0]
+
+def delete_bets_by_code(user_id, code, group_id):
+    c = conn.cursor()
+    if USE_PG:
+        c.execute(
+            "DELETE FROM bets WHERE agent_id=%s AND code=%s AND group_id=%s",
+            (user_id, code, group_id)
+        )
+    else:
+        c.execute(
+            "DELETE FROM bets WHERE agent_id=? AND code=? AND group_id=?",
+            (user_id, code, group_id)
+        )
+    deleted = c.rowcount
+    conn.commit()
+    return deleted
+
 
 
 async def show_bet_history_page(
