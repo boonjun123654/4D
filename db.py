@@ -95,28 +95,54 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute("""
-            SELECT TO_CHAR(bet_date, 'DD/MM') AS day,
-                   SUM(amount), SUM(commission)
+            SELECT
+                TO_CHAR(bet_date, 'DD/MM')   AS day,
+                market,
+                number,
+                code,
+                SUM(amount)      AS total_amount,
+                SUM(commission)  AS total_commission
             FROM bets
-            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
-            GROUP BY day
-            ORDER BY day
+            WHERE agent_id = %s
+              AND group_id  = %s
+              AND bet_date BETWEEN %s AND %s
+            GROUP BY day, market, number, code
+            ORDER BY day DESC
         """, (user_id, group_id, start_date, end_date))
     else:
         c.execute("""
-            SELECT strftime('%d/%m', bet_date) AS day,
-                   SUM(amount), SUM(commission)
+            SELECT
+                strftime('%d/%m', bet_date) AS day,
+                market,
+                number,
+                code,
+                SUM(amount),
+                SUM(commission)
             FROM bets
-            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
-            GROUP BY day
-            ORDER BY day
-        """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+            WHERE agent_id = ?
+              AND group_id  = ?
+              AND bet_date BETWEEN ? AND ?
+            GROUP BY day, market, number, code
+            ORDER BY day DESC
+        """, (
+            user_id,
+            group_id,
+            start_date.strftime('%Y-%m-%d'),
+            end_date.strftime('%Y-%m-%d'),
+        ))
     rows = c.fetchall()
+
     return [
-        {"day": r[0], "total_amount": r[1], "total_commission": r[2]}
+        {
+            "day":              r[0],
+            "market":           r[1],
+            "number":           r[2],
+            "code":             r[3],
+            "total_amount":     r[4],
+            "total_commission": r[5],
+        }
         for r in rows
     ]
-
 
 def get_recent_bet_codes(user_id, limit=5, group_id=None):
     c = conn.cursor()
