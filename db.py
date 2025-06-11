@@ -93,53 +93,55 @@ def get_bet_history(user_id, start_date, end_date, group_id):
 
 def get_commission_summary(user_id, start_date, end_date, group_id):
     c = conn.cursor()
+
     if USE_PG:
-        c.execute("""
+        # Postgres：用 string_to_array + cardinality 计算 market 数量
+        sql = """
             SELECT
-                TO_CHAR(bet_date, 'DD/MM')   AS day,
-                market,
-                number,
-                code,
-                SUM(amount)      AS total_amount,
-                SUM(commission)  AS total_commission
+                TO_CHAR(bet_date, 'DD/MM') AS day,
+                SUM(amount * CARDINALITY(string_to_array(market, ',')))  AS total_amount,
+                SUM(commission)                                        AS total_commission
             FROM bets
             WHERE agent_id = %s
               AND group_id  = %s
               AND bet_date BETWEEN %s AND %s
-            GROUP BY day, market, number, code
+            GROUP BY day
             ORDER BY day DESC
-        """, (user_id, group_id, start_date, end_date))
+        """
+        params = (user_id, group_id, start_date, end_date)
+
     else:
-        c.execute("""
+        # SQLite：用字符串函数计算逗号数再 +1
+        sql = """
             SELECT
                 strftime('%d/%m', bet_date) AS day,
-                market,
-                number,
-                code,
-                SUM(amount),
-                SUM(commission)
+                SUM(amount
+                    * (LENGTH(market)
+                       - LENGTH(REPLACE(market, ',', ''))
+                       + 1)
+                   )                           AS total_amount,
+                SUM(commission)             AS total_commission
             FROM bets
             WHERE agent_id = ?
               AND group_id  = ?
               AND bet_date BETWEEN ? AND ?
-            GROUP BY day, market, number, code
+            GROUP BY day
             ORDER BY day DESC
-        """, (
+        """
+        params = (
             user_id,
             group_id,
             start_date.strftime('%Y-%m-%d'),
             end_date.strftime('%Y-%m-%d'),
-        ))
-    rows = c.fetchall()
+        )
 
+    c.execute(sql, params)
+    rows = c.fetchall()
     return [
         {
             "day":              r[0],
-            "market":           r[1],
-            "number":           r[2],
-            "code":             r[3],
-            "total_amount":     r[4],
-            "total_commission": r[5],
+            "total_amount":     float(r[1]),
+            "total_commission": float(r[2]),
         }
         for r in rows
     ]
