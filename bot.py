@@ -4,6 +4,7 @@ import logging
 import random
 import string
 import threading
+from collections import OrderedDict
 from telegram import CallbackQuery
 from collections import defaultdict
 from telegram.constants import ParseMode
@@ -100,7 +101,13 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             await query.message.reply_text(f"⚠️ 删除失败，Code 不存在或已删除。")
 
-async def show_bet_history_page(callback_query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE, user_id: int, group_id: str):
+
+async def show_bet_history_page(
+    callback_query: CallbackQuery,
+    context: ContextTypes.DEFAULT_TYPE,
+    user_id: int,
+    group_id: str
+):
     per_page = 5
     page = context.user_data.get("history_page", 0)
 
@@ -110,31 +117,50 @@ async def show_bet_history_page(callback_query: CallbackQuery, context: ContextT
     all_bets = get_bet_history(user_id, start_date, end_date, group_id)
 
     if not all_bets:
-        await callback_query.edit_message_text("❗️你在最近 7 天没有下注记录。")
+        await callback_query.edit_message_text("🚫 你在最近 7 天没有下注记录。")
         return
 
+    # 1. 按 code 分组
+    grouped = OrderedDict()
+    for b in all_bets:
+        grouped.setdefault(b["code"], []).append(b)
+
+    groups = list(grouped.items())
+    total_groups = len(groups)
+
+    # 2. 翻页：每页 per_page 组
     offset = page * per_page
-    current = all_bets[offset: offset + per_page]
+    current_groups = groups[offset : offset + per_page]
 
+    # 3. 拼消息
     text = "📜 <b>下注记录（最近7天）</b>\n\n"
-    for b in current:
-        text += (
-            f"📅 {b['date']}\n"
-            f"🔢 Code：<code>{b['code']}</code>\n"
-            f"🎯 内容：{b['content']}\n"
-            f"💸 金额：RM{b['amount']:.2f}\n"
-            "----------------------\n"
-        )
+    for code, bets in current_groups:
+        text += f"🔖 Code：<code>{code}</code> （共 {len(bets)} 注）\n"
+        for b in bets:
+            text += (
+                f"  🗓 日期：{b['date']}\n"
+                f"  🔢 内容：{b['content']}\n"
+                f"  💰 金额：RM{b['amount']:.2f}\n"
+            )
+        text += "----------------------\n"
 
-    # 分页按钮
+    # 4. 分页按钮
     buttons = []
     if page > 0:
-        buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"history_page:{page-1}"))
-    if offset + per_page < len(all_bets):
-        buttons.append(InlineKeyboardButton("➡️ 下一页", callback_data=f"history_page:{page+1}"))
-
+        buttons.append(
+            InlineKeyboardButton("⬅ 上一页", callback_data=f"history_page:{page-1}")
+        )
+    if offset + per_page < total_groups:
+        buttons.append(
+            InlineKeyboardButton("下一页 ➡", callback_data=f"history_page:{page+1}")
+        )
     reply_markup = InlineKeyboardMarkup([buttons]) if buttons else None
-    await callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+
+    await callback_query.edit_message_text(
+        text,
+        reply_markup=reply_markup,
+        parse_mode="HTML"
+    )
 
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
