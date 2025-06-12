@@ -252,7 +252,9 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # 2. 从缓存读取待确认注单
     group_id = update.effective_chat.id
-    bets = context.user_data.get(f'pending_bets:{group_id}')
+    user_id = update.effective_user.id
+    
+    pending_bets = get_unconfirmed_bets(group_id)
 
     if not bets:
         # 如果找不到，给一个弹窗提示
