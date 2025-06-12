@@ -4,6 +4,7 @@ import logging
 import random
 import string
 import threading
+from db import save_pending_bet
 from collections import OrderedDict
 from telegram import CallbackQuery
 from collections import defaultdict
