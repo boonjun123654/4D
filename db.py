@@ -194,6 +194,18 @@ def save_pending_bet(user_id, group_id, date, market, number, bet_type, amount):
     """, (user_id, group_id, date, market, number, bet_type, amount))
     conn.commit()
 
+def get_unconfirmed_bets(group_id):
+    cursor.execute("""
+        SELECT * FROM bets WHERE group_id = %s AND confirmed = FALSE
+    """, (group_id,))
+    return cursor.fetchall()
+
+def confirm_bet(bet_id, delete_code):
+    cursor.execute("""
+        UPDATE bets SET confirmed = TRUE, delete_code = %s WHERE id = %s
+    """, (delete_code, bet_id))
+    conn.commit()
+
 
 # 导出连接和游标
 __all__ = ["conn", "cursor", "get_bet_history", "get_commission_summary", "get_recent_bet_codes", "delete_bet_and_commission"]
