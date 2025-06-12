@@ -187,5 +187,13 @@ def delete_bet_and_commission(code):
         logger.error(f"删除失败：{e}")
         return False
 
+def save_pending_bet(user_id, group_id, date, market, number, bet_type, amount):
+    cursor.execute("""
+        INSERT INTO bets (user_id, group_id, date, market, number, bet_type, amount, confirmed)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE)
+    """, (user_id, group_id, date, market, number, bet_type, amount))
+    conn.commit()
+
+
 # 导出连接和游标
 __all__ = ["conn", "cursor", "get_bet_history", "get_commission_summary", "get_recent_bet_codes", "delete_bet_and_commission"]
