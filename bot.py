@@ -223,7 +223,18 @@ async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 缓存待确认注单
     group_id = update.effective_chat.id
-    context.user_data[f'pending_bets:{group_id}'] = bets
+    user_id = update.effective_user.id
+
+    for bet in bets:
+        save_pending_bet(
+            user_id=user_id,
+            group_id=group_id,
+            date=bet['date'],
+            market=bet['market'],
+            number=bet['number'],
+            bet_type=bet['bet_type'],
+            amount=bet['amount']
+        )
 
     # 发送确认按钮
     keyboard = [[InlineKeyboardButton("✅ 确认下注", callback_data="confirm_bet")]]
