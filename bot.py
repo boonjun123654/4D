@@ -4,7 +4,6 @@ import logging
 import random
 import string
 import threading
-from db import save_pending_bet
 from collections import OrderedDict
 from telegram import CallbackQuery
 from collections import defaultdict
@@ -255,9 +254,9 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     group_id = update.effective_chat.id
     user_id = update.effective_user.id
     
-    pending_bets = get_unconfirmed_bets(group_id)
+    bets = context.user_data.get("pending_bets")
 
-   if not pending_bets:
+   if not bets:
         # 如果找不到，给一个弹窗提示
         await query.answer(
             text="⚠️ 未找到待确认的下注记录，请重新下注！",
