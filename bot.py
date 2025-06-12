@@ -257,7 +257,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     pending_bets = get_unconfirmed_bets(group_id)
 
-    if not bets:
+   if not pending_bets:
         # 如果找不到，给一个弹窗提示
         await query.answer(
             text="⚠️ 未找到待确认的下注记录，请重新下注！",
