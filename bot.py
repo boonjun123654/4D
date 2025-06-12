@@ -222,7 +222,8 @@ async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     commission = summary['total_commission']
 
     # 缓存待确认注单
-    context.user_data['pending_bets'] = bets
+    group_id = update.effective_chat.id
+    context.user_data[f'pending_bets:{group_id}'] = bets
 
     # 发送确认按钮
     keyboard = [[InlineKeyboardButton("✅ 确认下注", callback_data="confirm_bet")]]
@@ -239,7 +240,9 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer(text="下注处理中…", show_alert=False)
 
     # 2. 从缓存读取待确认注单
-    bets = context.user_data.get('pending_bets')
+    group_id = update.effective_chat.id
+    bets = context.user_data.get(f'pending_bets:{group_id}')
+
     if not bets:
         # 如果找不到，给一个弹窗提示
         await query.answer(
