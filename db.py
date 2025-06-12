@@ -187,19 +187,6 @@ def delete_bet_and_commission(code):
         logger.error(f"删除失败：{e}")
         return False
 
-def save_pending_bet(user_id, group_id, date, market, number, bet_type, amount):
-    cursor.execute("""
-        INSERT INTO bets (user_id, group_id, date, market, number, bet_type, amount, confirmed)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE)
-    """, (user_id, group_id, date, market, number, bet_type, amount))
-    conn.commit()
-
-def get_unconfirmed_bets(group_id):
-    cursor.execute("""
-        SELECT * FROM bets WHERE group_id = %s AND confirmed = FALSE
-    """, (group_id,))
-    return cursor.fetchall()
-
 def confirm_bet(bet_id, delete_code):
     cursor.execute("""
         UPDATE bets SET confirmed = TRUE, delete_code = %s WHERE id = %s
