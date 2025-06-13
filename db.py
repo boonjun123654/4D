@@ -93,7 +93,7 @@ def get_bet_history(start_date, end_date, group_id, user_id=None):
     rows = c.fetchall()
     return [{"date": r[0], "code": r[1], "content": r[2], "amount": r[3]} for r in rows]
 
-def get_commission_summary(user_id, start_date, end_date, group_id):
+def get_commission_summary(start_date, end_date, group_id):
     """
     生成最近 7 天的佣金报表，其中 “总额” = 每条下注的 amount × market 个数
     返回格式：
@@ -113,8 +113,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
               SUM(amount * CARDINALITY(string_to_array(market, ',')))      AS total_amount,
               SUM(commission)                                              AS total_commission
             FROM bets
-            WHERE agent_id = %s
-              AND group_id  = %s
+            WHERE group_id = %s ...
               AND bet_date BETWEEN %s AND %s
             GROUP BY day
             ORDER BY day DESC
