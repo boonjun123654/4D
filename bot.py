@@ -225,6 +225,8 @@ async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     group_id = update.effective_chat.id
     user_id = update.effective_user.id
 
+    context.chat_data['pending_bets'] = bets
+
     for bet in bets:
         save_pending_bet(
             user_id=user_id,
@@ -254,7 +256,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     group_id = update.effective_chat.id
     user_id = update.effective_user.id
     
-    bets = context.user_data.get("pending_bets")
+    bets = context.chat_data.get('pending_bets')
 
     if not bets:
         # 如果找不到，给一个弹窗提示
@@ -331,7 +333,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
     # 7. 清空缓存
-    context.user_data.pop('pending_bets', None)
+    context.chat_data.pop('pending_bets', None)
 
 def main():
 
