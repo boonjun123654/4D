@@ -69,14 +69,14 @@ else:
 
 conn.commit()
 
-def get_bet_history(start_date, end_date, group_id, user_id=None):
+def get_bet_history(start_date, end_date, group_id):
     c = conn.cursor()
     if user_id:
         # 按玩家查看
         query = """
         SELECT bet_date, code, number || '-' || bet_type AS content, amount
         FROM bets
-        WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
+        WHERE group_id = %s AND bet_date BETWEEN %s AND %s
         ORDER BY bet_date DESC
         """
         c.execute(query, (user_id, group_id, start_date, end_date))
@@ -134,8 +134,7 @@ def get_commission_summary(start_date, end_date, group_id):
               )                               AS total_amount,
               SUM(commission)                  AS total_commission
             FROM bets
-            WHERE agent_id = ?
-              AND group_id  = ?
+            WHERE roup_id  = ?
               AND bet_date BETWEEN ? AND ?
             GROUP BY day
             ORDER BY day DESC
