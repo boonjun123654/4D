@@ -69,27 +69,29 @@ else:
 
 conn.commit()
 
-def get_bet_history(user_id, start_date, end_date, group_id):
+def get_bet_history(start_date, end_date, group_id, user_id=None):
     c = conn.cursor()
-    if USE_PG:
-        c.execute("""
-            SELECT bet_date, code, number || '-' || bet_type AS content, amount
-            FROM bets
-            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
-            ORDER BY bet_date DESC
-        """, (user_id, group_id, start_date, end_date))
+    if user_id:
+        # 按玩家查看
+        query = """
+        SELECT bet_date, code, number || '-' || bet_type AS content, amount
+        FROM bets
+        WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
+        ORDER BY bet_date DESC
+        """
+        c.execute(query, (user_id, group_id, start_date, end_date))
     else:
-        c.execute("""
-            SELECT bet_date, code, number || '-' || bet_type AS content, amount
-            FROM bets
-            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
-            ORDER BY bet_date DESC
-        """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+        # 全群下注
+        query = """
+        SELECT bet_date, code, number || '-' || bet_type AS content, amount
+        FROM bets
+        WHERE group_id = %s AND bet_date BETWEEN %s AND %s
+        ORDER BY bet_date DESC
+        """
+        c.execute(query, (group_id, start_date, end_date))
+
     rows = c.fetchall()
-    return [
-        {"date": r[0], "code": r[1], "content": r[2], "amount": r[3]}
-        for r in rows
-    ]
+    return [{"date": r[0], "code": r[1], "content": r[2], "amount": r[3]} for r in rows]
 
 def get_commission_summary(user_id, start_date, end_date, group_id):
     """
@@ -155,22 +157,24 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
         for r in rows
     ]
 
-def get_recent_bet_codes(user_id, limit=5, group_id=None):
+def get_recent_bet_codes(group_id, limit=5):
     c = conn.cursor()
-    if group_id:
+    if USE_PG:
         query = """
-            SELECT code FROM bets
-            WHERE agent_id = %s AND group_id = %s
-            ORDER BY created_at DESC LIMIT %s
+        SELECT code FROM bets
+        WHERE group_id = %s
+        ORDER BY created_at DESC
+        LIMIT %s
         """
-        c.execute(query, (user_id, group_id, limit))
+        c.execute(query, (group_id, limit))
     else:
         query = """
-            SELECT code FROM bets
-            WHERE agent_id = %s
-            ORDER BY created_at DESC LIMIT %s
+        SELECT code FROM bets
+        WHERE group_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?
         """
-        c.execute(query, (user_id, limit))
+        c.execute(query, (group_id, limit))
     rows = c.fetchall()
     return [r[0] for r in rows]
 
