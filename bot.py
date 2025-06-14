@@ -242,7 +242,7 @@ async def show_bets_by_day(query, context,group_id, selected_date):
         lines.append("━━━━━━━━━━━━━━")
 
     text = "\n".join(lines)
-    await callback_query.edit_message_text(text, parse_mode="HTML")
+    await query.edit_message_text(text, parse_mode="HTML")
 
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
