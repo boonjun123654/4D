@@ -4,6 +4,7 @@ import logging
 import random
 import string
 import threading
+from db import USE_PG
 from collections import OrderedDict
 from telegram import CallbackQuery
 from collections import defaultdict
@@ -250,8 +251,6 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     group_id = query.message.chat.id
 
     # 4. 写入数据库
-    # 1. 把 USE_PG 和 sql 定义提到函数最开头（或者模块顶层就定义一次）
-    USE_PG = True  # 或者： bool(os.getenv("DATABASE_URL"))
     if USE_PG:
         sql = (
             "INSERT INTO bets "
@@ -271,7 +270,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # 把 market 列表统一转成字符串
             market_str = ','.join(str(m) for m in bet['markets'])
             params = (
-                query.from_group_id,
+                group_id,
                 bet['date'],
                 market_str,                  # 这里用 market_str
                 bet['number'],
@@ -283,6 +282,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 delete_code
             )
                 # 真正执行
+            logger.info(f"写入下注：{params}")
             cursor.execute(sql, params)
         # 3. 循环外 commit
         conn.commit()
