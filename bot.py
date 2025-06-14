@@ -62,7 +62,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     if data == "task:history":
         # 初始化頁面為第0頁
         context.user_data["history_page"] = 0
-        await show_bet_history_page(query, context, user_id, group_id)
+        await show_history_date_buttons(query, context,group_id)
 
     elif data == "task:commission":
         today = datetime.now().date()
@@ -94,10 +94,9 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer(f"正在加载第 {page+1} 页…", show_alert=False)
         await show_delete_code_page(query, context, group_id)
 
-    elif data.startswith("history_page:"):
-        page = int(data.split(":", 1)[1])
-        context.user_data["history_page"] = page
-        await show_bet_history_page(query, context, user_id, group_id)
+    elif data.startswith("history_day:"):
+        selected_date = data.split(":", 1)[1]  
+        await show_bets_by_day(query, context,group_id, selected_date)
 
     elif data.startswith("delete_code:"):
         code = data.split(":", 1)[1]
@@ -204,65 +203,46 @@ def delete_bets_by_code(code, group_id):
     finally:
         conn.close()
 
-async def show_bet_history_page(
-    callback_query: CallbackQuery,
-    context: ContextTypes.DEFAULT_TYPE,
-    user_id: int,
-    group_id: str
-):
-    per_page = 5
-    page = context.user_data.get("history_page", 0)
+async def show_history_date_buttons(callback_query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
+    today = datetime.now().date()
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=(today - timedelta(days=i)).strftime("%d/%m"),
+                callback_data=f"history_day:{(today - timedelta(days=i)).strftime('%Y-%m-%d')}"
+            )
+        ]
+        for i in range(7)
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await callback_query.edit_message_text(
+        "📅 请选择要查看下注记录的日期：",
+        reply_markup=reply_markup
+    )
 
-    # 时间范围：最近7天
-    end_date = datetime.now().date()
-    start_date = end_date - timedelta(days=7)
-    all_bets = get_bet_history(user_id, start_date, end_date, group_id)
+async def show_bets_by_day(callback_query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE,group_id: str, selected_date: str):
+    date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
+    bets = get_bet_history(user_id, date_obj, date_obj, group_id)
 
-    if not all_bets:
-        await callback_query.edit_message_text("🚫 你在最近 7 天没有下注记录。")
+    if not bets:
+        await callback_query.edit_message_text("⚠️ 你在该日没有下注记录。")
         return
 
-    # 1. 按 code 分组
     grouped = OrderedDict()
-    for b in all_bets:
+    for b in bets:
         grouped.setdefault(b["code"], []).append(b)
 
-    groups = list(grouped.items())
-    total_groups = len(groups)
+    lines = []
+    for code, code_bets in grouped.items():
+        lines.append(f"<b>📌 Code：{code}</b>")
+        lines.append(f"📅 {code_bets[0]['date']}")
+        market = "MKT"
+        numbers = " ".join([b["content"] for b in code_bets])
+        lines.append(f"{market}\n{numbers}")
+        lines.append("━━━━━━━━━━━━━━")
 
-    # 2. 翻页：每页 per_page 组
-    offset = page * per_page
-    current_groups = groups[offset : offset + per_page]
-
-    # 3. 拼消息
-    text = "📜 <b>下注记录（最近7天）</b>\n\n"
-    for code, bets in current_groups:
-        text += f"🔖 Code：<code>{code}</code> （共 {len(bets)} 注）\n"
-        for b in bets:
-            text += (
-                f"  🗓 日期：{b['date']}\n"
-                f"  🔢 内容：{b['content']}\n"
-                f"  💰 金额：RM{b['amount']:.2f}\n"
-            )
-        text += "----------------------\n"
-
-    # 4. 分页按钮
-    buttons = []
-    if page > 0:
-        buttons.append(
-            InlineKeyboardButton("⬅ 上一页", callback_data=f"history_page:{page-1}")
-        )
-    if offset + per_page < total_groups:
-        buttons.append(
-            InlineKeyboardButton("下一页 ➡", callback_data=f"history_page:{page+1}")
-        )
-    reply_markup = InlineKeyboardMarkup([buttons]) if buttons else None
-
-    await callback_query.edit_message_text(
-        text,
-        reply_markup=reply_markup,
-        parse_mode="HTML"
-    )
+    text = "\n".join(lines)
+    await callback_query.edit_message_text(text, parse_mode="HTML")
 
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -387,7 +367,7 @@ def main():
     # Handlers
     app.add_handler( MessageHandler( filters.TEXT & ~filters.Regex(r'^/'), handle_bet_text)) 
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
-    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^task:|^history_page:|^delete_code:|^confirm_delete:|^commission:|^delete_page:"))
+    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^task:|^history_day:|^delete_code:|^confirm_delete:|^commission:|^delete_page:"))
     app.add_handler(CommandHandler("task", handle_task_menu))
 
     app.run_polling()
