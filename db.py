@@ -154,7 +154,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
         for r in rows
     ]
 
-def get_recent_bet_codes(user_id, limit=5, group_id=None):
+def get_recent_bet_codes(limit=5, group_id=None):
     c = conn.cursor()
     if group_id:
         query = """
