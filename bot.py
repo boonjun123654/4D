@@ -215,17 +215,17 @@ async def show_history_date_buttons(query, context,group_id):
         for i in range(7)
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await callback_query.edit_message_text(
+    await query.edit_message_text(
         "📅 请选择要查看下注记录的日期：",
         reply_markup=reply_markup
     )
 
-async def show_bets_by_day(callback_query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE,group_id: str, selected_date: str):
+async def show_bets_by_day(query, context,group_id, selected_date):
     date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
-    bets = get_bet_history(user_id, date_obj, date_obj, group_id)
+    bets = get_bet_history(date_obj, date_obj, group_id)
 
     if not bets:
-        await callback_query.edit_message_text("⚠️ 你在该日没有下注记录。")
+        await query.edit_message_text("⚠️ 你在该日没有下注记录。")
         return
 
     grouped = OrderedDict()
