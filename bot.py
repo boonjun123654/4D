@@ -78,17 +78,29 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.message.reply_text("\n".join(lines))
 
     elif data == "task:delete":
-    # 初始化第一页
-        context.user_data["delete_page"] = 0
-        await show_delete_code_page(query, context, group_id)
+        # 1. 拿最近 5 个不同的 Code
+        recent_codes = get_recent_bet_codes(limit=5, group_id=group_id)
+        if not recent_codes:
+            await query.message.reply_text("⚠️ 你最近没有下注记录。")
+            return
 
-    elif data == "delete_page:prev":
-        context.user_data["delete_page"] = max(0, context.user_data.get("delete_page", 0) - 1)
-        await show_delete_code_page(query, context, group_id)
+        unique_codes = list(set(recent_codes))  # 去重
 
-    elif data == "delete_page:next":
-        context.user_data["delete_page"] = context.user_data.get("delete_page", 0) + 1
-        await show_delete_code_page(query, context, group_id)
+        # 2. 为每个 Code 生成一个“删除该 Code 下所有下注”按钮
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    f"Code:{code}",
+                    callback_data=f"delete_code:{code}"
+                )
+            ]
+            for code in unique_codes
+        ]
+
+        await query.message.reply_text(
+            "请选择要删除的下注 Code：",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
     elif data.startswith("history_page:"):
         page = int(data.split(":", 1)[1])
@@ -194,39 +206,6 @@ async def show_bet_history_page(
         text,
         reply_markup=reply_markup,
         parse_mode="HTML"
-    )
-
-async def show_delete_code_page(query, context, group_id):
-    all_codes = get_recent_bet_codes(group_id=group_id)
-    unique_codes = list(dict.fromkeys(all_codes))  # 保留顺序去重
-    page = context.user_data.get("delete_page", 0)
-
-    total_pages = (len(unique_codes) + PAGE_SIZE - 1) // PAGE_SIZE
-    start = page * PAGE_SIZE
-    end = start + PAGE_SIZE
-    current_codes = unique_codes[start:end]
-
-    if not current_codes:
-        await query.message.reply_text("⚠️ 没有可显示的下注 Code。")
-        return
-
-    keyboard = [
-        [InlineKeyboardButton(f"Code:{code}", callback_data=f"delete_code:{code}")]
-        for code in current_codes
-    ]
-
-    nav_buttons = []
-    if page > 0:
-        nav_buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data="delete_page:prev"))
-    if end < len(unique_codes):
-        nav_buttons.append(InlineKeyboardButton("➡️ 下一页", callback_data="delete_page:next"))
-
-    if nav_buttons:
-        keyboard.append(nav_buttons)
-
-    await query.message.reply_text(
-        f"📄 正在显示第 {page + 1} 页 / 共 {total_pages} 页：",
-        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
