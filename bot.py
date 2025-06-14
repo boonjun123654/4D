@@ -104,9 +104,9 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         # 3. 调用新方法，一次性删除该 code 下的所有下注
         deleted_count = delete_bets_by_code(code, group_id)
         if deleted_count > 0:
-            await query.message.reply_text(f"✅ 已删除 Code:{code} 下的所有 {deleted_count} 注单。")
+            await query.edit_message_text(f"✅ 已删除 Code:{code} 下的所有 {deleted_count} 注单。")
         else:
-            await query.message.reply_text("⚠️ 删除失败，Code 不存在或已删除。")
+            await query.edit_message_text("⚠️ 删除失败，Code 不存在或已删除。")
 
     elif data.startswith("confirm_delete:"):
         code = data.split(":", 1)[1]
@@ -117,7 +117,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             [InlineKeyboardButton("❌ 取消", callback_data="task:delete")]
         ]
         await query.edit_message_text(
-            text=f"⚠️ 你确定要删除 Code:{code} 的所有注单吗？",
+            text=f"⚠️ 你确定要删除 Code:{code} 的单吗？",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
