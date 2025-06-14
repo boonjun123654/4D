@@ -94,8 +94,6 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             ]
             for code in recent_codes
         ]
-        # 可选：加一个返回主菜单按钮
-        keyboard.append([InlineKeyboardButton("⬅️ 返回主菜单", callback_data="task:menu")])
 
         await query.message.reply_text(
             "请选择要删除的下注 Code：",
@@ -110,7 +108,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif data.startswith("delete_code:"):
         code = data.split(":", 1)[1]
         # 3. 调用新方法，一次性删除该 code 下的所有下注
-        deleted_count = delete_bets_by_code(user_id, code, group_id)
+        deleted_count = delete_bets_by_code(code, group_id)
         if deleted_count > 0:
             await query.message.reply_text(f"✅ 已删除 Code:{code} 下的所有 {deleted_count} 注单。")
         else:
@@ -135,12 +133,12 @@ def delete_bets_by_code(code, group_id):
     if USE_PG:
         c.execute(
             "DELETE FROM bets WHERE code=%s AND group_id=%s",
-            (user_id, code, group_id)
+            (code, group_id)
         )
     else:
         c.execute(
             "DELETE FROM bets WHERE code=? AND group_id=?",
-            (user_id, code, group_id)
+            (code, group_id)
         )
     deleted = c.rowcount
     conn.commit()
