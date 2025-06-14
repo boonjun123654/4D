@@ -254,6 +254,10 @@ async def show_bets_by_day(query, context, group_id, selected_date):
 
         # 统计每个号码下的下注类型与金额
         for b in code_bets:
+            if "number" not in b or "bet_type" not in b or "amount" not in b:
+                logger.warning(f"无效下注数据: {b}")
+                continue
+
             number = b["number"]
             bet_type = b["bet_type"]
             amount = float(b["amount"])
