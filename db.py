@@ -69,31 +69,29 @@ else:
 
 conn.commit()
 
-def get_bet_history(start_date, end_date, group_id):
+def get_bet_history(user_id, start_date, end_date, group_id):
     c = conn.cursor()
-    if user_id:
-        # 按玩家查看
-        query = """
-        SELECT bet_date, code, number || '-' || bet_type AS content, amount
-        FROM bets
-        WHERE group_id = %s AND bet_date BETWEEN %s AND %s
-        ORDER BY bet_date DESC
-        """
-        c.execute(query, (user_id, group_id, start_date, end_date))
+    if USE_PG:
+        c.execute("""
+            SELECT bet_date, code, number || '-' || bet_type AS content, amount
+            FROM bets
+            WHERE agent_id = %s AND group_id = %s AND bet_date BETWEEN %s AND %s
+            ORDER BY bet_date DESC
+        """, (user_id, group_id, start_date, end_date))
     else:
-        # 全群下注
-        query = """
-        SELECT bet_date, code, number || '-' || bet_type AS content, amount
-        FROM bets
-        WHERE group_id = %s AND bet_date BETWEEN %s AND %s
-        ORDER BY bet_date DESC
-        """
-        c.execute(query, (group_id, start_date, end_date))
-
+        c.execute("""
+            SELECT bet_date, code, number || '-' || bet_type AS content, amount
+            FROM bets
+            WHERE agent_id = ? AND group_id = ? AND bet_date BETWEEN ? AND ?
+            ORDER BY bet_date DESC
+        """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     rows = c.fetchall()
-    return [{"date": r[0], "code": r[1], "content": r[2], "amount": r[3]} for r in rows]
+    return [
+        {"date": r[0], "code": r[1], "content": r[2], "amount": r[3]}
+        for r in rows
+    ]
 
-def get_commission_summary(start_date, end_date, group_id):
+def get_commission_summary(user_id, start_date, end_date, group_id):
     """
     生成最近 7 天的佣金报表，其中 “总额” = 每条下注的 amount × market 个数
     返回格式：
@@ -113,7 +111,8 @@ def get_commission_summary(start_date, end_date, group_id):
               SUM(amount * CARDINALITY(string_to_array(market, ',')))      AS total_amount,
               SUM(commission)                                              AS total_commission
             FROM bets
-            WHERE group_id = %s ...
+            WHERE agent_id = %s
+              AND group_id  = %s
               AND bet_date BETWEEN %s AND %s
             GROUP BY day
             ORDER BY day DESC
@@ -134,7 +133,8 @@ def get_commission_summary(start_date, end_date, group_id):
               )                               AS total_amount,
               SUM(commission)                  AS total_commission
             FROM bets
-            WHERE roup_id  = ?
+            WHERE agent_id = ?
+              AND group_id  = ?
               AND bet_date BETWEEN ? AND ?
             GROUP BY day
             ORDER BY day DESC
@@ -155,24 +155,22 @@ def get_commission_summary(start_date, end_date, group_id):
         for r in rows
     ]
 
-def get_recent_bet_codes(group_id, limit=5):
+def get_recent_bet_codes(user_id, limit=5, group_id=None):
     c = conn.cursor()
-    if USE_PG:
+    if group_id:
         query = """
-        SELECT code FROM bets
-        WHERE group_id = %s
-        ORDER BY created_at DESC
-        LIMIT %s
+            SELECT code FROM bets
+            WHERE agent_id = %s AND group_id = %s
+            ORDER BY created_at DESC LIMIT %s
         """
-        c.execute(query, (group_id, limit))
+        c.execute(query, (user_id, group_id, limit))
     else:
         query = """
-        SELECT code FROM bets
-        WHERE group_id = ?
-        ORDER BY created_at DESC
-        LIMIT ?
+            SELECT code FROM bets
+            WHERE agent_id = %s
+            ORDER BY created_at DESC LIMIT %s
         """
-        c.execute(query, (group_id, limit))
+        c.execute(query, (user_id, limit))
     rows = c.fetchall()
     return [r[0] for r in rows]
 
