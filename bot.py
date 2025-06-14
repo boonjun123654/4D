@@ -117,12 +117,12 @@ def get_bet_count_for_code(code, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute(
-            "SELECT COUNT(*) FROM bets WHERE agent_id=%s AND code=%s AND group_id=%s",
+            "SELECT COUNT(*) FROM bets WHERE code=%s AND group_id=%s",
             (code, group_id)
         )
     else:
         c.execute(
-            "SELECT COUNT(*) FROM bets WHERE agent_id=? AND code=? AND group_id=?",
+            "SELECT COUNT(*) FROM bets WHERE code=? AND group_id=?",
             (code, group_id)
         )
     return c.fetchone()[0]
@@ -131,12 +131,12 @@ def delete_bets_by_code(code, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute(
-            "DELETE FROM bets WHERE agent_id=%s AND code=%s AND group_id=%s",
+            "DELETE FROM bets WHERE code=%s AND group_id=%s",
             (code, group_id)
         )
     else:
         c.execute(
-            "DELETE FROM bets WHERE agent_id=? AND code=? AND group_id=?",
+            "DELETE FROM bets WHERE code=? AND group_id=?",
             code, group_id)
 
     deleted = c.rowcount
@@ -255,13 +255,13 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if USE_PG:
         sql = (
             "INSERT INTO bets "
-            "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+            "group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
             "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
         )
     else:
         sql = (
             "INSERT INTO bets "
-            "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+            "(group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
             "VALUES (?,?,?,?,?,?,?,?,?,?,?)"
         )
 
