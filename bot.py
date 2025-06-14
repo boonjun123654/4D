@@ -77,8 +77,6 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             lines.append(f"{row['day']}：总额 RM{row['total_amount']:.2f} / 佣金 RM{row['total_commission']:.2f}")
         await query.message.reply_text("\n".join(lines))
 
-    PAGE_SIZE = 5  # 每页显示 5 个 code
-
     elif data == "task:delete":
         context.user_data["delete_page"] = 0
         await show_delete_code_page(query, context, group_id)
