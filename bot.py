@@ -246,8 +246,8 @@ async def show_bets_by_day(query, context, group_id, selected_date):
 
     lines = []
     for code, code_bets in grouped.items():
-        date = code_bets[0]['date']
-        market = code_bets[0].get("market")
+        date = code_bets[0]["date"]
+        market = code_bets[0].get("market", "MKT")
         total_amount = 0
         number_map = {}
 
@@ -258,15 +258,22 @@ async def show_bets_by_day(query, context, group_id, selected_date):
             total_amount += amount
 
             if number not in number_map:
-                number_map[number] = set()
-            number_map[number].add(bet_type)
+                number_map[number] = {}
+
+            if bet_type not in number_map[number]:
+                number_map[number][bet_type] = 0
+
+            number_map[number][bet_type] += amount
 
         number_lines = []
-        for number, types in number_map.items():
-            type_str = "/".join(sorted(types))
+        for number, type_dict in number_map.items():
+            type_str = "/".join(
+                f"{int(amount)}{bet_type}"
+                for bet_type, amount in sorted(type_dict.items())
+            )
             number_lines.append(f"{number}-{type_str}")
 
-        lines.append(f"📌 Code：<b>{code}</b>")
+        # 拼接文字格式
         lines.append(f"📅 {date}")
         lines.append(f"{market}")
         lines.append(" ".join(number_lines))
