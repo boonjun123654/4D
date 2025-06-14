@@ -158,17 +158,17 @@ def get_recent_bet_codes(group_id=None):
     c = conn.cursor()
     if group_id:
         query = """
-            SELECT DISTINCT code
+            SELECT DISTINCT ON (code) code
             FROM bets
             WHERE group_id = %s
-            ORDER BY created_at DESC
+            ORDER BY code, created_at DESC
         """
         c.execute(query, (group_id,))
     else:
         query = """
-            SELECT DISTINCT code
+            SELECT DISTINCT ON (code) code
             FROM bets
-            ORDER BY created_at DESC
+            ORDER BY code, created_at DESC
         """
         c.execute(query)
     rows = c.fetchall()
