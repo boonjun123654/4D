@@ -119,12 +119,12 @@ def get_bet_count_for_code(code, group_id):
     if USE_PG:
         c.execute(
             "SELECT COUNT(*) FROM bets WHERE code=%s AND group_id=%s",
-            (user_id, code, group_id)
+            (code, group_id)
         )
     else:
         c.execute(
             "SELECT COUNT(*) FROM bets WHERE code=? AND group_id=?",
-            (user_id, code, group_id)
+            (code, group_id)
         )
     return c.fetchone()[0]
 
