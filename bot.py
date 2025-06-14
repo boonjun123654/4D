@@ -298,21 +298,22 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # 4. 写入数据库
     # 1. 把 USE_PG 和 sql 定义提到函数最开头（或者模块顶层就定义一次）
-    if USE_PG:
-        sql = (
-            "INSERT INTO bets "
-            "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-        )
-    else:
-        sql = (
-            "INSERT INTO bets "
-            "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)"
-        )
-
-    # 2. 在 try 里先生成 params、再 execute
     try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        if USE_PG:
+            sql = (
+                "INSERT INTO bets "
+                "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            )
+        else:
+            sql = (
+                "INSERT INTO bets "
+                "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+            )
+
         for bet in bets:
             # 把 market 列表统一转成字符串
             market_str = ','.join(str(m) for m in bet['markets'])
@@ -342,6 +343,8 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
             show_alert=True
         )
         return
+    finally:
+        conn.close()
 
 # 4. 成功后继续下面的 edit_message_reply_markup + reply_text...
 
