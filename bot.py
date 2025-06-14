@@ -79,7 +79,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif data == "task:delete":
         # 1. 拿最近 5 个不同的 Code
-        recent_codes = get_recent_bet_codes(user_id, limit=5, group_id=group_id)
+        recent_codes = get_recent_bet_codes(limit=5, group_id=group_id)
         if not recent_codes:
             await query.message.reply_text("⚠️ 你最近没有下注记录。")
             return
@@ -88,7 +88,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         keyboard = [
             [
                 InlineKeyboardButton(
-                    f"❌ 删除 Code:{code} （共{get_bet_count_for_code(user_id, code, group_id)} 注）",
+                    f"❌ 删除 Code:{code} （共{get_bet_count_for_code(code, group_id)} 注）",
                     callback_data=f"delete_code:{code}"
                 )
             ]
