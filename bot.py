@@ -68,7 +68,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif data == "task:commission":
         today = datetime.now().date()
         start_date = today - timedelta(days=6)
-        rows = get_commission_summary(user_id, start_date, today, group_id)
+        rows = get_commission_summary(start_date, today, group_id)
 
         if not rows:
             await query.message.reply_text("⚠️ 没有找到最近7天的佣金记录。")
