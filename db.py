@@ -63,7 +63,7 @@ def get_bet_history(start_date, end_date, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute("""
-            SELECT bet_date, code, number || '-' || bet_type AS content, amount
+            SELECT bet_date, code, number, bet_type, amount, market
             FROM bets
             WHERE group_id = %s AND bet_date BETWEEN %s AND %s
             ORDER BY bet_date DESC
@@ -71,14 +71,21 @@ def get_bet_history(start_date, end_date, group_id):
 
     else:
         c.execute("""
-            SELECT bet_date, code, number || '-' || bet_type AS content, amount
+            SELECT bet_date, code, number, bet_type, amount, market
             FROM bets
             WHERE group_id = ? AND bet_date BETWEEN ? AND ?
             ORDER BY bet_date DESC
         """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     rows = c.fetchall()
     data = [
-        {"date": r[0], "code": r[1], "content": r[2], "amount": r[3]}
+        {
+            "date": r[0],
+            "code": r[1],
+            "number": r[2],
+            "bet_type": r[3],
+            "amount": r[4],
+            "market": r[5]
+        }
         for r in rows
     ]
 
