@@ -23,7 +23,6 @@ if database_url:
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS bets (
         id SERIAL PRIMARY KEY,
-        agent_id BIGINT NOT NULL,
         bet_date DATE NOT NULL,
         market TEXT NOT NULL,
         number VARCHAR(4) NOT NULL,
@@ -46,7 +45,6 @@ else:
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS bets (
             id SERIAL PRIMARY KEY,
-            agent_id BIGINT NOT NULL,
             bet_date DATE NOT NULL,
             market CHAR(1) NOT NULL,
             number VARCHAR(4) NOT NULL,
@@ -69,7 +67,7 @@ else:
 
 conn.commit()
 
-def get_bet_history(user_id, start_date, end_date, group_id):
+def get_bet_history(start_date, end_date, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute("""
@@ -77,21 +75,21 @@ def get_bet_history(user_id, start_date, end_date, group_id):
             FROM bets
             WHERE group_id = %s AND bet_date BETWEEN %s AND %s
             ORDER BY bet_date DESC
-        """, (user_id, group_id, start_date, end_date))
+        """, (group_id, start_date, end_date))
     else:
         c.execute("""
             SELECT bet_date, code, number || '-' || bet_type AS content, amount
             FROM bets
             WHERE group_id = ? AND bet_date BETWEEN ? AND ?
             ORDER BY bet_date DESC
-        """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+        """, (group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     rows = c.fetchall()
     return [
         {"date": r[0], "code": r[1], "content": r[2], "amount": r[3]}
         for r in rows
     ]
 
-def get_commission_summary(user_id, start_date, end_date, group_id):
+def get_commission_summary(start_date, end_date, group_id):
     """
     生成最近 7 天的佣金报表，其中 “总额” = 每条下注的 amount × market 个数
     返回格式：
@@ -115,7 +113,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
               AND bet_date BETWEEN %s AND %s
             GROUP BY day
             ORDER BY day DESC
-        """, (user_id, group_id, start_date, end_date))
+        """, (group_id, start_date, end_date))
 
     else:
         # SQLite: 用 string 函数计算逗号数再 +1
@@ -137,7 +135,6 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
             GROUP BY day
             ORDER BY day DESC
         """, (
-            user_id,
             group_id,
             start_date.strftime('%Y-%m-%d'),
             end_date.strftime('%Y-%m-%d'),
@@ -153,7 +150,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
         for r in rows
     ]
 
-def get_recent_bet_codes(user_id, limit=5, group_id=None):
+def get_recent_bet_codes(limit=5, group_id=None):
     c = conn.cursor()
     if group_id:
         query = """
@@ -161,14 +158,14 @@ def get_recent_bet_codes(user_id, limit=5, group_id=None):
             WHERE group_id = %s
             ORDER BY created_at DESC LIMIT %s
         """
-        c.execute(query, (user_id, group_id, limit))
+        c.execute(query, (group_id, limit))
     else:
         query = """
             SELECT code FROM bets
             WHERE group_id = %s
             ORDER BY created_at DESC LIMIT %s
         """
-        c.execute(query, (user_id, limit))
+        c.execute(query, (group_id,limit))
     rows = c.fetchall()
     return [r[0] for r in rows]
 
