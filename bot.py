@@ -179,7 +179,7 @@ def delete_bets_by_code(code, group_id):
         deleted = c.rowcount
         conn.commit()
         return deleted
-        except Exception as e:
+    except Exception as e:
             logger.error(f"❌ 删除下注失败: {e}")
             return 0
         finally:
