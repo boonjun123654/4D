@@ -58,7 +58,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-def get_bet_history(user_id, start_date, end_date, group_id):
+def get_bet_history(start_date, end_date, group_id):
     conn = get_conn()
     c = conn.cursor()
     if USE_PG:
