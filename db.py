@@ -1,75 +1,65 @@
 import os
+import psycopg2
 import sqlite3
+
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
-# 读取环境变量，优先使用 PostgreSQL，否则降级到 SQLite 本地文件
-database_url = os.getenv("DATABASE_URL")
+# ✅ 统一获取连接函数
+def get_conn():
+    if USE_PG:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        conn.autocommit = True
+        return conn
+    else:
+        return sqlite3.connect("data.db", check_same_thread=False)
 
-if database_url:
-    # 生产环境：PostgreSQL
-    import psycopg2
-    conn = psycopg2.connect(database_url)
-    conn.autocommit = True
+# ✅ 初始化表结构（只需执行一次）
+def init_db():
+    conn = get_conn()
+    cursor = conn.cursor()
 
-else:
-    # 本地调试：SQLite
-    conn = sqlite3.connect("data.db", check_same_thread=False)
-
-cursor = conn.cursor()
-
-# 初始化 bets 表结构
-if database_url:
-    # PostgreSQL 模式
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS bets (
-        id SERIAL PRIMARY KEY,
-        agent_id BIGINT NOT NULL,
-        bet_date DATE NOT NULL,
-        market TEXT NOT NULL,
-        number VARCHAR(4) NOT NULL,
-        bet_type VARCHAR(4) NOT NULL,
-        mode VARCHAR(8),
-        amount NUMERIC NOT NULL,
-        potential_win NUMERIC NOT NULL,
-        commission NUMERIC NOT NULL,
-        code VARCHAR(9) NOT NULL,
-        group_id TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-    """)
-    # 为 code 字段创建索引以加速删除与查询
-    cursor.execute("""
-    CREATE INDEX IF NOT EXISTS idx_bets_code ON bets(code);
-    """)
-else:
-    # SQLite 模式
+    if USE_PG:
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS bets (
             id SERIAL PRIMARY KEY,
             agent_id BIGINT NOT NULL,
             bet_date DATE NOT NULL,
-            market CHAR(1) NOT NULL,
-            number VARCHAR(4) NOT NULL,
+            market TEXT NOT NULL,
+            number VARCHAR(20) NOT NULL,
             bet_type VARCHAR(4) NOT NULL,
-            mode VARCHAR(8),
+            mode VARCHAR(4),
             amount NUMERIC NOT NULL,
             potential_win NUMERIC NOT NULL,
             commission NUMERIC NOT NULL,
             code VARCHAR(9) NOT NULL,
             group_id TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+        )
+        """)
+    else:
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id INTEGER NOT NULL,
+            bet_date TEXT NOT NULL,
+            market TEXT NOT NULL,
+            number TEXT NOT NULL,
+            bet_type TEXT NOT NULL,
+            mode TEXT,
+            amount REAL NOT NULL,
+            potential_win REAL NOT NULL,
+            commission REAL NOT NULL,
+            code TEXT NOT NULL,
+            group_id TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
         """)
 
-        # 确保旧表也有 code 列（若不存在则添加）
-        cursor.execute("ALTER TABLE bets ADD COLUMN IF NOT EXISTS code VARCHAR(9);")
-        # 为 code 字段创建索引
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_bets_code ON bets(code);")
-
-
-conn.commit()
+    conn.commit()
+    conn.close()
 
 def get_bet_history(user_id, start_date, end_date, group_id):
+    conn = get_conn()
     c = conn.cursor()
     if USE_PG:
         c.execute("""
@@ -87,12 +77,15 @@ def get_bet_history(user_id, start_date, end_date, group_id):
             ORDER BY bet_date DESC
         """, (user_id, group_id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
     rows = c.fetchall()
-    return [
+    data = [
         {"date": r[0], "code": r[1], "content": r[2], "amount": r[3]}
         for r in rows
     ]
 
-def get_commission_summary(user_id, start_date, end_date, group_id):
+    conn.close()
+    return data
+
+def get_commission_summary(start_date, end_date, group_id):
     """
     生成最近 7 天的佣金报表，其中 “总额” = 每条下注的 amount × market 个数
     返回格式：
@@ -102,6 +95,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
       ...
     ]
     """
+    conn = get_conn()
     c = conn.cursor()
 
     if USE_PG:
@@ -138,13 +132,14 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
             GROUP BY day
             ORDER BY day DESC
         """, (
-            user_id,
             group_id,
             start_date.strftime('%Y-%m-%d'),
             end_date.strftime('%Y-%m-%d'),
         ))
 
     rows = c.fetchall()
+    conn.close()
+
     return [
         {
             "day":              r[0],
@@ -156,6 +151,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
 
 def get_recent_bet_codes(group_id=None):
     c = conn.cursor()
+    c.execute(...)
     if group_id:
         query = """
             SELECT DISTINCT ON (code) code
@@ -172,9 +168,10 @@ def get_recent_bet_codes(group_id=None):
         """
         c.execute(query)
     rows = c.fetchall()
-    return [r[0] for r in rows]
+    return [r[0] for r in c.fetchall()]
 
 def delete_bet_and_commission(code, group_id):
+    conn = get_conn()
     c = conn.cursor()
     try:
         if USE_PG:
@@ -182,9 +179,11 @@ def delete_bet_and_commission(code, group_id):
         else:
             c.execute("DELETE FROM bets WHERE code = ? AND group_id = ?", (code, group_id))
         conn.commit()
+        conn.close()
         return True
     except Exception as e:
         logger.error(f"删除失败：{e}")
+        conn.close()
         return False
 
 # 导出连接和游标
