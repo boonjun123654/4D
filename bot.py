@@ -180,10 +180,10 @@ def delete_bets_by_code(code, group_id):
         conn.commit()
         return deleted
     except Exception as e:
-            logger.error(f"❌ 删除下注失败: {e}")
-            return 0
-        finally:
-            conn.close()
+        logger.error(f"❌ 删除下注失败: {e}")
+        return 0
+    finally:
+        conn.close()
 
 async def show_bet_history_page(
     callback_query: CallbackQuery,
