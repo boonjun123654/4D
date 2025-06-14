@@ -84,15 +84,17 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             await query.message.reply_text("⚠️ 你最近没有下注记录。")
             return
 
+        unique_codes = list(set(recent_codes))  # 去重
+
         # 2. 为每个 Code 生成一个“删除该 Code 下所有下注”按钮
         keyboard = [
             [
                 InlineKeyboardButton(
-                    f"❌ 删除 Code:{code} （共{get_bet_count_for_code(code, group_id)} 注）",
+                    f"Code:{code}",
                     callback_data=f"delete_code:{code}"
                 )
             ]
-            for code in recent_codes
+            for code in unique_codes
         ]
 
         await query.message.reply_text(
