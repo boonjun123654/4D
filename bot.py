@@ -77,30 +77,19 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             lines.append(f"{row['day']}：总额 RM{row['total_amount']:.2f} / 佣金 RM{row['total_commission']:.2f}")
         await query.message.reply_text("\n".join(lines))
 
+    PAGE_SIZE = 5  # 每页显示 5 个 code
+
     elif data == "task:delete":
-        # 1. 拿最近 5 个不同的 Code
-        recent_codes = get_recent_bet_codes(limit=5, group_id=group_id)
-        if not recent_codes:
-            await query.message.reply_text("⚠️ 你最近没有下注记录。")
-            return
+        context.user_data["delete_page"] = 0
+        await show_delete_code_page(query, context, group_id)
 
-        unique_codes = list(set(recent_codes))  # 去重
-
-        # 2. 为每个 Code 生成一个“删除该 Code 下所有下注”按钮
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    f"Code:{code}",
-                    callback_data=f"delete_code:{code}"
-                )
-            ]
-            for code in unique_codes
-        ]
-
-        await query.message.reply_text(
-            "请选择要删除的下注 Code：",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+    elif data.startswith("delete_page:"):
+        try:
+            page = int(data.split(":")[1])
+        except:
+            page = 0
+        context.user_data["delete_page"] = max(0, page)
+        await show_delete_code_page(query, context, group_id)
 
     elif data.startswith("history_page:"):
         page = int(data.split(":", 1)[1])
@@ -115,6 +104,41 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             await query.message.reply_text(f"✅ 已删除 Code:{code} 下的所有 {deleted_count} 注单。")
         else:
             await query.message.reply_text("⚠️ 删除失败，Code 不存在或已删除。")
+
+async def show_delete_code_page(query, context, group_id):
+    # 获取所有下注 code
+    all_codes = get_recent_bet_codes(group_id=group_id)
+    unique_codes = list(dict.fromkeys(all_codes))  # 保持顺序去重
+    total_codes = len(unique_codes)
+
+    page = context.user_data.get("delete_page", 0)
+    offset = page * PAGE_SIZE
+    current_codes = unique_codes[offset: offset + PAGE_SIZE]
+
+    if not current_codes:
+        await query.message.edit_text("⚠️ 没有可显示的下注 Code。")
+        return
+
+    # 生成 code 按钮
+    keyboard = [
+        [InlineKeyboardButton(f"Code:{code}", callback_data=f"delete_code:{code}")]
+        for code in current_codes
+    ]
+
+    # 分页按钮
+    buttons = []
+    if page > 0:
+        buttons.append(InlineKeyboardButton("⬅ 上一页", callback_data=f"delete_page:{page-1}"))
+    if offset + PAGE_SIZE < total_codes:
+        buttons.append(InlineKeyboardButton("➡ 下一页", callback_data=f"delete_page:{page+1}"))
+    if buttons:
+        keyboard.append(buttons)
+
+    # 发送消息
+    await query.message.edit_text(
+        f"🗑 请选择要删除的下注 Code：\n\n📄 正在显示第 {page + 1} 页 / 共 {(total_codes + PAGE_SIZE - 1) // PAGE_SIZE} 页",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 def get_bet_count_for_code(code, group_id):
     c = conn.cursor()
