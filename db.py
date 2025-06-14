@@ -154,22 +154,23 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
         for r in rows
     ]
 
-def get_recent_bet_codes(limit=5, group_id=None):
+def get_recent_bet_codes(group_id=None):
     c = conn.cursor()
     if group_id:
         query = """
-            SELECT code FROM bets
+            SELECT DISTINCT code
+            FROM bets
             WHERE group_id = %s
-            ORDER BY created_at DESC LIMIT %s
+            ORDER BY created_at DESC
         """
-        c.execute(query, (group_id, limit))
+        c.execute(query, (group_id,))
     else:
         query = """
-            SELECT code FROM bets
-            WHERE group_id = %s
-            ORDER BY created_at DESC LIMIT %s
+            SELECT DISTINCT code
+            FROM bets
+            ORDER BY created_at DESC
         """
-        c.execute(query, (user_id, limit))
+        c.execute(query)
     rows = c.fetchall()
     return [r[0] for r in rows]
 
