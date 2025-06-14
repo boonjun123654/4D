@@ -247,7 +247,7 @@ async def show_bets_by_day(query, context, group_id, selected_date):
     lines = []
     for code, code_bets in grouped.items():
         date = code_bets[0]['date']
-        arket = code_bets[0].get("market")
+        market = code_bets[0].get("market")
         total_amount = 0
         number_map = {}
 
