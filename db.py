@@ -150,8 +150,9 @@ def get_commission_summary(start_date, end_date, group_id):
     ]
 
 def get_recent_bet_codes(group_id=None):
+    conn = get_conn()
     c = conn.cursor()
-    c.execute(...)
+
     if group_id:
         query = """
             SELECT DISTINCT ON (code) code
@@ -168,7 +169,8 @@ def get_recent_bet_codes(group_id=None):
         """
         c.execute(query)
     rows = c.fetchall()
-    return [r[0] for r in c.fetchall()]
+    conn.close()
+    return [r[0] for r in rows]
 
 def delete_bet_and_commission(code, group_id):
     conn = get_conn()
