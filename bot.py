@@ -256,13 +256,13 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
         sql = (
             "INSERT INTO bets "
             "group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
         )
     else:
         sql = (
             "INSERT INTO bets "
             "(group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+            "VALUES (?,?,?,?,?,?,?,?,?,?)"
         )
 
     # 2. 在 try 里先生成 params、再 execute
