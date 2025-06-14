@@ -119,12 +119,12 @@ def get_bet_count_for_code(user_id, code, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute(
-            "SELECT COUNT(*) FROM bets WHERE agent_id=%s AND code=%s AND group_id=%s",
+            "SELECT COUNT(*) FROM bets WHERE code=%s AND group_id=%s",
             (user_id, code, group_id)
         )
     else:
         c.execute(
-            "SELECT COUNT(*) FROM bets WHERE agent_id=? AND code=? AND group_id=?",
+            "SELECT COUNT(*) FROM bets WHERE code=? AND group_id=?",
             (user_id, code, group_id)
         )
     return c.fetchone()[0]
@@ -133,12 +133,12 @@ def delete_bets_by_code(user_id, code, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute(
-            "DELETE FROM bets WHERE agent_id=%s AND code=%s AND group_id=%s",
+            "DELETE FROM bets WHERE code=%s AND group_id=%s",
             (user_id, code, group_id)
         )
     else:
         c.execute(
-            "DELETE FROM bets WHERE agent_id=? AND code=? AND group_id=?",
+            "DELETE FROM bets WHERE code=? AND group_id=?",
             (user_id, code, group_id)
         )
     deleted = c.rowcount
