@@ -4,6 +4,7 @@ import logging
 import random
 import string
 import threading
+from db import USE_PG
 from collections import OrderedDict
 from telegram import CallbackQuery
 from collections import defaultdict
@@ -115,7 +116,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             await query.message.reply_text("⚠️ 删除失败，Code 不存在或已删除。")
 
-def get_bet_count_for_code(user_id, code, group_id):
+def get_bet_count_for_code(code, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute(
@@ -129,7 +130,7 @@ def get_bet_count_for_code(user_id, code, group_id):
         )
     return c.fetchone()[0]
 
-def delete_bets_by_code(user_id, code, group_id):
+def delete_bets_by_code(code, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute(
@@ -256,7 +257,6 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # 4. 写入数据库
     # 1. 把 USE_PG 和 sql 定义提到函数最开头（或者模块顶层就定义一次）
-    USE_PG = True  # 或者： bool(os.getenv("DATABASE_URL"))
     if USE_PG:
         sql = (
             "INSERT INTO bets "
