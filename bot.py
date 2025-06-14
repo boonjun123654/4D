@@ -56,8 +56,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     data = query.data
     user_id = query.from_user.id
     group_id = str(query.message.chat.id)
-    logger.info(f"👉 任务按钮触发！user_id: {user_id}, group_id: {group_id}, data: {query.data}")
-
+    logger.info(f"[分页] 当前 data = {data}")
     await query.answer()
 
     if data == "task:history":
@@ -89,6 +88,9 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         except:
             page = 0
         context.user_data["delete_page"] = max(0, page)
+
+        logger.info(f"分页跳转至第 {page+1} 页")
+
         await query.answer(f"正在加载第 {page+1} 页…", show_alert=False)
         await show_delete_code_page(query, context, group_id)
 
@@ -113,6 +115,8 @@ async def show_delete_code_page(query, context, group_id):
     total_codes = len(unique_codes)
 
     page = context.user_data.get("delete_page", 0)
+    logger.info(f"调用分页函数，当前页码：{page}")
+
     offset = page * PAGE_SIZE
     current_codes = unique_codes[offset: offset + PAGE_SIZE]
 
