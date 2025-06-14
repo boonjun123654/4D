@@ -268,7 +268,7 @@ async def show_bets_by_day(query, context, group_id, selected_date):
 
         lines.append(f"📌 Code：<b>{code}</b>")
         lines.append(f"📅 {date}")
-        lines.append(market)
+        lines.append(f"{market}")
         lines.append(" ".join(number_lines))
         lines.append(f"Total {int(total_amount)}")
         lines.append("-------------------------")
