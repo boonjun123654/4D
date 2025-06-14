@@ -203,17 +203,29 @@ def delete_bets_by_code(code, group_id):
     finally:
         conn.close()
 
-async def show_history_date_buttons(query, context,group_id):
+async def show_history_date_buttons(query, context, group_id):
     today = datetime.now().date()
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=(today - timedelta(days=i)).strftime("%d/%m"),
-                callback_data=f"history_day:{(today - timedelta(days=i)).strftime('%Y-%m-%d')}"
-            )
-        ]
-        for i in range(7)
-    ]
+    
+    keyboard = []
+    row = []
+
+    for i in range(7):
+        date_obj = today - timedelta(days=i)
+        button = InlineKeyboardButton(
+            text=date_obj.strftime("%d/%m"),
+            callback_data=f"history_day:{date_obj.strftime('%Y-%m-%d')}"
+        )
+        row.append(button)
+
+        # 每3个按钮组成一行
+        if (i + 1) % 3 == 0:
+            keyboard.append(row)
+            row = []
+
+    # 剩下不满3个的按钮行也添加进去
+    if row:
+        keyboard.append(row)
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(
         "📅 请选择要查看下注记录的日期：",
