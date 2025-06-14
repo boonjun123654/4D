@@ -154,7 +154,7 @@ async def show_bet_history_page(
     # 时间范围：最近7天
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=7)
-    all_bets = get_bet_historystart_date, end_date, group_id)
+    all_bets = get_bet_history(start_date, end_date, group_id)
 
     if not all_bets:
         await callback_query.edit_message_text("🚫 你在最近 7 天没有下注记录。")
