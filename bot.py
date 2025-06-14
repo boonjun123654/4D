@@ -4,7 +4,6 @@ import logging
 import random
 import string
 import threading
-import psycopg2
 from db import USE_PG
 from collections import OrderedDict
 from telegram import CallbackQuery
