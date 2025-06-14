@@ -234,7 +234,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer(text="下注处理中…", show_alert=False)
 
     # 2. 从缓存读取待确认注单
-    context.user_data.pop('pending_bets', None)
+    bets = context.user_data.get("pending_bets")
     if not bets:
         # 如果找不到，给一个弹窗提示
         await query.answer(
