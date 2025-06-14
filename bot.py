@@ -232,7 +232,7 @@ async def show_history_date_buttons(query, context, group_id):
         reply_markup=reply_markup
     )
 
-async def show_bets_by_day(query, context,group_id, selected_date):
+async def show_bets_by_day(query, context, group_id, selected_date):
     date_obj = datetime.strptime(selected_date, "%Y-%m-%d").date()
     bets = get_bet_history(date_obj, date_obj, group_id)
 
@@ -246,12 +246,32 @@ async def show_bets_by_day(query, context,group_id, selected_date):
 
     lines = []
     for code, code_bets in grouped.items():
-        lines.append(f"<b>📌 Code：{code}</b>")
-        lines.append(f"📅 {code_bets[0]['date']}")
-        market = "MKT"
-        numbers = " ".join([b["content"] for b in code_bets])
-        lines.append(f"{market}\n{numbers}")
-        lines.append("━━━━━━━━━━━━━━")
+        date = code_bets[0]['date']
+        market = code_bets[0]['market']  # 改为真实 market 字段
+        total_amount = 0
+        number_map = {}
+
+        for b in code_bets:
+            number = b["number"]
+            bet_type = b["bet_type"]
+            amount = float(b["amount"])
+            total_amount += amount
+
+            if number not in number_map:
+                number_map[number] = set()
+            number_map[number].add(bet_type)
+
+        number_lines = []
+        for number, types in number_map.items():
+            type_str = "/".join(sorted(types))
+            number_lines.append(f"{number}-{type_str}")
+
+        lines.append(f"📌 Code：<b>{code}</b>")
+        lines.append(f"📅 {date}")
+        lines.append(market)
+        lines.append(" ".join(number_lines))
+        lines.append(f"Total {int(total_amount)}")
+        lines.append("-------------------------")
 
     text = "\n".join(lines)
     await query.edit_message_text(text, parse_mode="HTML")
