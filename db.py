@@ -177,9 +177,9 @@ def delete_bet_and_commission(code, group_id):
     c = conn.cursor()
     try:
         if USE_PG:
-            c.execute("DELETE FROM bets WHERE code = %s", (code,))
+            c.execute("DELETE FROM bets WHERE code = %s AND group_id = %s", (code, group_id))
         else:
-            c.execute("DELETE FROM bets WHERE code = ?", (code,))
+            c.execute("DELETE FROM bets WHERE code = ? AND group_id = ?", (code, group_id))
         conn.commit()
         return True
     except Exception as e:
