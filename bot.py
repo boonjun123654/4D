@@ -261,7 +261,8 @@ async def show_bets_by_day(query, context, group_id, selected_date):
             number = b["number"]
             bet_type = b["bet_type"]
             amount = float(b["amount"])
-            total_amount += amount
+            market_count = len(b.get("market", "M").split(","))  # ✅ 计算market数量
+            total_amount += amount * market_count  # ✅ 加上市场倍数
 
             if number not in number_map:
                 number_map[number] = {}
