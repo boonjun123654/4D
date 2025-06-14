@@ -24,7 +24,7 @@ from telegram.ext import (
 from parser import parse_bet_text
 from engine import calculate
 from db import (
-    conn, cursor,
+    get_conn,
     get_commission_summary,
     get_bet_history,
     get_recent_bet_codes,
