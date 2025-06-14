@@ -203,7 +203,7 @@ def delete_bets_by_code(code, group_id):
     finally:
         conn.close()
 
-async def show_history_date_buttons(callback_query: CallbackQuery, context: ContextTypes.DEFAULT_TYPE):
+async def show_history_date_buttons(query, context,group_id):
     today = datetime.now().date()
     keyboard = [
         [
