@@ -87,6 +87,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         except:
             page = 0
         context.user_data["delete_page"] = max(0, page)
+        await query.answer(f"正在加载第 {page+1} 页…", show_alert=False)
         await show_delete_code_page(query, context, group_id)
 
     elif data.startswith("history_page:"):
