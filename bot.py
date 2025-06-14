@@ -4,7 +4,6 @@ import logging
 import random
 import string
 import threading
-from db import USE_PG
 from collections import OrderedDict
 from telegram import CallbackQuery
 from collections import defaultdict
@@ -52,19 +51,21 @@ PAGE_SIZE = 5
 async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
+    user_id = query.from_user.id
     group_id = str(query.message.chat.id)
+    logger.info(f"👉 任务按钮触发！user_id: {user_id}, group_id: {group_id}, data: {query.data}")
 
     await query.answer()
 
     if data == "task:history":
         # 初始化頁面為第0頁
         context.user_data["history_page"] = 0
-        await show_bet_history_page(query, context,group_id)
+        await show_bet_history_page(query, context, user_id, group_id)
 
     elif data == "task:commission":
         today = datetime.now().date()
         start_date = today - timedelta(days=6)
-        rows = get_commission_summary(start_date, today, group_id)
+        rows = get_commission_summary(user_id, start_date, today, group_id)
 
         if not rows:
             await query.message.reply_text("⚠️ 没有找到最近7天的佣金记录。")
@@ -77,7 +78,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif data == "task:delete":
         # 1. 拿最近 5 个不同的 Code
-        recent_codes = get_recent_bet_codes(limit=5, group_id=group_id)
+        recent_codes = get_recent_bet_codes(user_id, limit=5, group_id=group_id)
         if not recent_codes:
             await query.message.reply_text("⚠️ 你最近没有下注记录。")
             return
@@ -86,7 +87,7 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         keyboard = [
             [
                 InlineKeyboardButton(
-                    f"❌ 删除 Code:{code} （共{get_bet_count_for_code(code, group_id)} 注）",
+                    f"❌ 删除 Code:{code} （共{get_bet_count_for_code(user_id, code, group_id)} 注）",
                     callback_data=f"delete_code:{code}"
                 )
             ]
@@ -103,50 +104,53 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif data.startswith("history_page:"):
         page = int(data.split(":", 1)[1])
         context.user_data["history_page"] = page
-        await show_bet_history_page(query, context, group_id)
+        await show_bet_history_page(query, context, user_id, group_id)
 
     elif data.startswith("delete_code:"):
         code = data.split(":", 1)[1]
         # 3. 调用新方法，一次性删除该 code 下的所有下注
-        deleted_count = delete_bets_by_code(code, group_id)
+        deleted_count = delete_bets_by_code(user_id, code, group_id)
         if deleted_count > 0:
             await query.message.reply_text(f"✅ 已删除 Code:{code} 下的所有 {deleted_count} 注单。")
         else:
             await query.message.reply_text("⚠️ 删除失败，Code 不存在或已删除。")
 
-def get_bet_count_for_code(code, group_id):
+def get_bet_count_for_code(user_id, code, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute(
-            "SELECT COUNT(*) FROM bets WHERE code=%s AND group_id=%s",
-            (code, group_id)
+            "SELECT COUNT(*) FROM bets WHERE agent_id=%s AND code=%s AND group_id=%s",
+            (user_id, code, group_id)
         )
     else:
         c.execute(
-            "SELECT COUNT(*) FROM bets WHERE code=? AND group_id=?",
-            (code, group_id)
+            "SELECT COUNT(*) FROM bets WHERE agent_id=? AND code=? AND group_id=?",
+            (user_id, code, group_id)
         )
     return c.fetchone()[0]
 
-def delete_bets_by_code(code, group_id):
+def delete_bets_by_code(user_id, code, group_id):
     c = conn.cursor()
     if USE_PG:
         c.execute(
-            "DELETE FROM bets WHERE code=%s AND group_id=%s",
-            (code, group_id)
+            "DELETE FROM bets WHERE agent_id=%s AND code=%s AND group_id=%s",
+            (user_id, code, group_id)
         )
     else:
         c.execute(
-            "DELETE FROM bets WHERE code=? AND group_id=?",
-            code, group_id)
-
+            "DELETE FROM bets WHERE agent_id=? AND code=? AND group_id=?",
+            (user_id, code, group_id)
+        )
     deleted = c.rowcount
     conn.commit()
     return deleted
 
+
+
 async def show_bet_history_page(
     callback_query: CallbackQuery,
     context: ContextTypes.DEFAULT_TYPE,
+    user_id: int,
     group_id: str
 ):
     per_page = 5
@@ -155,7 +159,7 @@ async def show_bet_history_page(
     # 时间范围：最近7天
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=7)
-    all_bets = get_bet_history(start_date, end_date, group_id)
+    all_bets = get_bet_history(user_id, start_date, end_date, group_id)
 
     if not all_bets:
         await callback_query.edit_message_text("🚫 你在最近 7 天没有下注记录。")
@@ -218,7 +222,7 @@ async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     commission = summary['total_commission']
 
     # 缓存待确认注单
-    context.user_data.pop('pending_bets', None)
+    context.user_data['pending_bets'] = bets
 
     # 发送确认按钮
     keyboard = [[InlineKeyboardButton("✅ 确认下注", callback_data="confirm_bet")]]
@@ -235,7 +239,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer(text="下注处理中…", show_alert=False)
 
     # 2. 从缓存读取待确认注单
-    bets = context.user_data.get("pending_bets")
+    bets = context.user_data.get('pending_bets')
     if not bets:
         # 如果找不到，给一个弹窗提示
         await query.answer(
@@ -251,17 +255,19 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     group_id = query.message.chat.id
 
     # 4. 写入数据库
+    # 1. 把 USE_PG 和 sql 定义提到函数最开头（或者模块顶层就定义一次）
+    USE_PG = True  # 或者： bool(os.getenv("DATABASE_URL"))
     if USE_PG:
         sql = (
             "INSERT INTO bets "
-            "group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
         )
     else:
         sql = (
             "INSERT INTO bets "
-            "(group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?)"
+            "(agent_id, group_id, bet_date, market, number, bet_type, mode, amount, potential_win, commission, code) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)"
         )
 
     # 2. 在 try 里先生成 params、再 execute
@@ -270,6 +276,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # 把 market 列表统一转成字符串
             market_str = ','.join(str(m) for m in bet['markets'])
             params = (
+                query.from_user.id,
                 group_id,
                 bet['date'],
                 market_str,                  # 这里用 market_str
@@ -282,7 +289,6 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 delete_code
             )
                 # 真正执行
-            logger.info(f"写入下注：{params}")
             cursor.execute(sql, params)
         # 3. 循环外 commit
         conn.commit()
