@@ -138,12 +138,10 @@ def delete_bets_by_code(code, group_id):
         c.execute(
             "DELETE FROM bets WHERE agent_id=? AND code=? AND group_id=?",
             code, group_id)
-        )
+
     deleted = c.rowcount
     conn.commit()
     return deleted
-
-
 
 async def show_bet_history_page(
     callback_query: CallbackQuery,
