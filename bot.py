@@ -5,6 +5,8 @@ import random
 import string
 import threading
 from db import USE_PG
+from db import init_db
+init_db()
 from collections import OrderedDict
 from telegram import CallbackQuery
 from collections import defaultdict
@@ -140,36 +142,48 @@ async def show_delete_code_page(query, context, group_id):
     )
 
 def get_bet_count_for_code(code, group_id):
+    conn = get_conn()
     c = conn.cursor()
-    if USE_PG:
-        c.execute(
-            "SELECT COUNT(*) FROM bets WHERE code=%s AND group_id=%s",
-            (code, group_id)
-        )
-    else:
-        c.execute(
-            "SELECT COUNT(*) FROM bets WHERE code=? AND group_id=?",
-            (code, group_id)
-        )
-    return c.fetchone()[0]
+    try:
+        if USE_PG:
+            c.execute(
+                "SELECT COUNT(*) FROM bets WHERE code=%s AND group_id=%s",
+                (code, group_id)
+            )
+        else:
+            c.execute(
+                "SELECT COUNT(*) FROM bets WHERE code=? AND group_id=?",
+                (code, group_id)
+            )
+        return c.fetchone()[0]
+    except Exception as e:
+        logger.error(f"❌ 获取下注数量失败: {e}")
+        return 0
+    finally:
+        conn.close()
 
 def delete_bets_by_code(code, group_id):
+    conn = get_conn()
     c = conn.cursor()
-    if USE_PG:
-        c.execute(
-            "DELETE FROM bets WHERE code=%s AND group_id=%s",
-            (code, group_id)
-        )
-    else:
-        c.execute(
-            "DELETE FROM bets WHERE code=? AND group_id=?",
-            (code, group_id)
-        )
-    deleted = c.rowcount
-    conn.commit()
-    return deleted
-
-
+    try:   
+        if USE_PG:
+            c.execute(
+                "DELETE FROM bets WHERE code=%s AND group_id=%s",
+                (code, group_id)
+            )
+        else:
+            c.execute(
+                "DELETE FROM bets WHERE code=? AND group_id=?",
+                (code, group_id)
+            )
+        deleted = c.rowcount
+        conn.commit()
+        return deleted
+        except Exception as e:
+            logger.error(f"❌ 删除下注失败: {e}")
+            return 0
+        finally:
+            conn.close()
 
 async def show_bet_history_page(
     callback_query: CallbackQuery,
