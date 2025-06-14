@@ -108,6 +108,21 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             await query.message.reply_text("⚠️ 删除失败，Code 不存在或已删除。")
 
+    elif data.startswith("confirm_delete:"):
+        code = data.split(":", 1)[1]
+
+        # 发出确认提示
+        keyboard = [
+            [InlineKeyboardButton("✅ 确认删除", callback_data=f"delete_code:{code}")],
+            [InlineKeyboardButton("❌ 取消", callback_data="task:delete")]
+        ]
+        await query.edit_message_text(
+            text=f"⚠️ 你确定要删除 Code:{code} 的所有注单吗？",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
+
 async def show_delete_code_page(query, context, group_id):
     # 获取所有下注 code
     all_codes = get_recent_bet_codes(group_id=group_id)
@@ -126,7 +141,7 @@ async def show_delete_code_page(query, context, group_id):
 
     # 生成 code 按钮
     keyboard = [
-        [InlineKeyboardButton(f"Code:{code}", callback_data=f"delete_code:{code}")]
+        [InlineKeyboardButton(f"Code:{code}", callback_data=f"confirm_delete:{code}")]
         for code in current_codes
     ]
 
@@ -372,7 +387,7 @@ def main():
     # Handlers
     app.add_handler( MessageHandler( filters.TEXT & ~filters.Regex(r'^/'), handle_bet_text)) 
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
-    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^task:|^history_page:|^delete_code:|^commission:|^delete_page:"))
+    app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^task:|^history_page:|^delete_code:|^confirm_delete:|^commission:|^delete_page:"))
     app.add_handler(CommandHandler("task", handle_task_menu))
 
     app.run_polling()
