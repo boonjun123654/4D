@@ -77,7 +77,8 @@ def get_bet_history(user_id, start_date, end_date, group_id):
             FROM bets
             WHERE group_id = %s AND bet_date BETWEEN %s AND %s
             ORDER BY bet_date DESC
-        """, (user_id, group_id, start_date, end_date))
+        """, (group_id, start_date, end_date))
+
     else:
         c.execute("""
             SELECT bet_date, code, number || '-' || bet_type AS content, amount
@@ -115,7 +116,7 @@ def get_commission_summary(user_id, start_date, end_date, group_id):
               AND bet_date BETWEEN %s AND %s
             GROUP BY day
             ORDER BY day DESC
-        """, (user_id, group_id, start_date, end_date))
+        """, (group_id, start_date, end_date))
 
     else:
         # SQLite: 用 string 函数计算逗号数再 +1
@@ -161,7 +162,7 @@ def get_recent_bet_codes(user_id, limit=5, group_id=None):
             WHERE group_id = %s
             ORDER BY created_at DESC LIMIT %s
         """
-        c.execute(query, (user_id, group_id, limit))
+        c.execute(query, (group_id, limit))
     else:
         query = """
             SELECT code FROM bets
@@ -172,7 +173,7 @@ def get_recent_bet_codes(user_id, limit=5, group_id=None):
     rows = c.fetchall()
     return [r[0] for r in rows]
 
-def delete_bet_and_commission(code):
+def delete_bet_and_commission(code, group_id):
     c = conn.cursor()
     try:
         if USE_PG:
