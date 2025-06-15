@@ -47,7 +47,8 @@ async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📜 历史记录", callback_data="task:history")],
         [InlineKeyboardButton("💰 佣金报表", callback_data="task:commission")],
-        [InlineKeyboardButton("🗑️ 删除下注", callback_data="task:delete")]
+        [InlineKeyboardButton("🗑️ 删除下注", callback_data="task:delete")],
+        [InlineKeyboardButton("🧾 查看重复", callback_data="task:check_duplicates")]
     ])
     await update.message.reply_text("📌 请选择任务操作：", reply_markup=keyboard)
 
@@ -120,8 +121,11 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             text=f"⚠️ 你确定要删除 Code:{code} 的单吗？",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        return
 
+    elif query.data == "task:check_duplicates":
+        await check_duplicate_numbers(update, context, group_id)
+
+        return
 
 async def show_delete_code_page(query, context, group_id):
     # ✅ 获取未被锁注的 code（内部已判断 19:00 锁注）
@@ -345,6 +349,44 @@ async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"总额 RM{total:.2f}，最多可赢 RM{potential:.2f}\n"
         f"代理佣金 RM{commission:.2f}，确认下注吗？", reply_markup=reply_markup
     )
+
+async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE, group_id: int):
+    conn = get_conn()
+    c = conn.cursor()
+    try:
+        if USE_PG:
+            c.execute("""
+                SELECT bet_date, number, COUNT(*) 
+                FROM bets 
+                WHERE group_id = %s 
+                GROUP BY bet_date, number 
+                HAVING COUNT(*) > 1 
+                ORDER BY bet_date DESC
+            """, (group_id,))
+        else:
+            c.execute("""
+                SELECT bet_date, number, COUNT(*) 
+                FROM bets 
+                WHERE group_id = ? 
+                GROUP BY bet_date, number 
+                HAVING COUNT(*) > 1 
+                ORDER BY bet_date DESC
+            """, (group_id,))
+        
+        rows = c.fetchall()
+        if not rows:
+            await update.callback_query.answer("✅ 没有发现重复下注号码", show_alert=True)
+        else:
+            text = "⚠️ 重复下注号码如下：\n"
+            for row in rows:
+                date, number, count = row
+                text += f"{date} - {number}（{count}次）\n"
+            await update.callback_query.message.reply_text(text)
+    except Exception as e:
+        logger.error(f"❌ 检查重复号码出错: {e}")
+        await update.callback_query.answer("❌ 检查失败，请稍后再试", show_alert=True)
+    finally:
+        conn.close()
 
 async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
