@@ -352,7 +352,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         for bet in bets:
             # 把 market 列表统一转成字符串
-            market_str = ','.join(str(m) for m in bet['markets'])
+            market_str = ','.join(str(m) for m in bet['markets']).replace('L', 'E')
             params = (
                 query.from_user.id,
                 group_id,
