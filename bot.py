@@ -43,6 +43,49 @@ logger = logging.getLogger(__name__)
 # 判断是否使用 Postgres 参数风格
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
+async def show_personal_menu(update, context):
+    keyboard = [
+        [InlineKeyboardButton("🎯 输入中奖成绩", callback_data="input_result")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("请选择操作：", reply_markup=reply_markup)
+
+async def handle_personal_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "input_result":
+        keyboard = [
+            [InlineKeyboardButton("M", callback_data="result_market:M"), InlineKeyboardButton("K", callback_data="result_market:K")],
+            [InlineKeyboardButton("T", callback_data="result_market:T"), InlineKeyboardButton("S", callback_data="result_market:S")],
+            [InlineKeyboardButton("H", callback_data="result_market:H"), InlineKeyboardButton("E", callback_data="result_market:E")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("请选择 Market（市场）：", reply_markup=reply_markup)
+
+    elif query.data.startswith("result_market:"):
+        market = query.data.split(":")[1]
+        context.user_data["result_market"] = market
+
+        await query.edit_message_text(f"你选择了 {market}。\n请输入今日的中奖成绩（以空格分隔）：\n\n例如：1234 5678 9012")
+        context.user_data["awaiting_result_input"] = True
+
+async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.user_data.get("awaiting_result_input") and "result_market" in context.user_data:
+        market = context.user_data["result_market"]
+        result_text = update.message.text.strip()
+
+        # 保存逻辑（你可以改成存数据库或文件）
+        today_str = datetime.now().strftime("%d/%m")
+        context.bot_data.setdefault("daily_results", {})  # 初始化
+        context.bot_data["daily_results"][(today_str, market)] = result_text
+
+        # 清理状态
+        context.user_data.pop("awaiting_result_input", None)
+        context.user_data.pop("result_market", None)
+
+        await update.message.reply_text(f"{today_str} {market} 的中奖号码已记录：\n{result_text}")
+
 async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📜 历史记录", callback_data="task:history")],
@@ -508,6 +551,9 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
     app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^task:|^history_day:|^delete_code:|^confirm_delete:|^commission:|^delete_page:"))
     app.add_handler(CommandHandler("task", handle_task_menu))
+    app.add_handler(CommandHandler("start", show_personal_menu))
+    app.add_handler(CallbackQueryHandler(handle_personal_menu))
+    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE, handle_result_input))
 
     app.run_polling()
 
