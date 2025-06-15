@@ -5,6 +5,7 @@ import random
 import string
 import pytz
 import threading
+from db import clear_old_results
 from db import USE_PG
 from db import init_db
 init_db()
