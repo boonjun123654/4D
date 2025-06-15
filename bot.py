@@ -383,7 +383,7 @@ async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_
         else:
             text = "⚠️ 重复下注号码如下：\n"
             for row in rows:
-                date, number, market, count = row
+                date, number, market,bet_type ,count = row
                 text += f"{date} - {market} - {number} - {bet_type}（{count}次）\n"
             await update.callback_query.message.reply_text(text)
 
