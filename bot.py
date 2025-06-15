@@ -414,6 +414,8 @@ async def show_bets_by_day(query, context, group_id, selected_date):
     await query.edit_message_text(text, parse_mode="HTML")
 
 async def handle_bet_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.chat.type == "private":
+        return
     text = update.message.text
     try:
         bets = parse_bet_text(text)
