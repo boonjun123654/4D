@@ -3,7 +3,7 @@ import psycopg2
 import sqlite3
 import logging
 import pytz
-from datetime import date, timedelta, datetime,time
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
