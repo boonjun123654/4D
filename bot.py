@@ -12,7 +12,7 @@ from collections import OrderedDict
 from telegram import CallbackQuery
 from collections import defaultdict
 from telegram.constants import ParseMode
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime,time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
