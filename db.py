@@ -162,30 +162,32 @@ def get_commission_summary(start_date, end_date, group_id):
     ]
 
 def get_recent_bet_codes(group_id=None):
+    from datetime import datetime, time
+    import pytz
+
     conn = get_conn()
     c = conn.cursor()
+
     try:
         tz = pytz.timezone("Asia/Kuala_Lumpur")
         now = datetime.now(tz)
         today = now.date()
-
-        # 当前时间的锁注点（当天19:00）
         lock_datetime_today = datetime.combine(today, time(19, 0)).astimezone(tz)
 
-        # 查询所有 code + bet_date
+        # 查询所有 code 和 bet_date（ORDER BY 需要的字段必须都出现在 SELECT 中）
         if group_id:
             query = """
-                SELECT DISTINCT code, bet_date
+                SELECT DISTINCT ON (code) code, bet_date, created_at
                 FROM bets
                 WHERE group_id = %s
-                ORDER BY code DESC, created_at DESC
+                ORDER BY code, created_at DESC
             """
             c.execute(query, (group_id,))
         else:
             query = """
-                SELECT DISTINCT code, bet_date
+                SELECT DISTINCT ON (code) code, bet_date, created_at
                 FROM bets
-                ORDER BY code DESC, created_at DESC
+                ORDER BY code, created_at DESC
             """
             c.execute(query)
 
@@ -194,12 +196,13 @@ def get_recent_bet_codes(group_id=None):
 
         # 过滤出未锁注的 code
         valid_codes = []
-        for code, bet_datetime in rows:
+        for code, bet_datetime, created_at in rows:
             if isinstance(bet_datetime, str):
                 bet_datetime = datetime.fromisoformat(bet_datetime)
             bet_date = bet_datetime.date()
             lock_datetime = datetime.combine(bet_date, time(19, 0)).astimezone(tz)
 
+            # 如果当前时间早于该注单的锁定时间 → 可显示
             if now < lock_datetime:
                 valid_codes.append(code)
 
