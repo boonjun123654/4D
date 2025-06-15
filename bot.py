@@ -208,7 +208,10 @@ def delete_bets_by_code(code, group_id):
         if isinstance(bet_datetime, str):
             bet_datetime = datetime.fromisoformat(bet_datetime)
 
-        bet_date = bet_datetime.date()
+        if isinstance(bet_datetime, datetime):
+            bet_date = bet_datetime.date()
+        else:
+            bet_date = bet_datetime
 
         # 马来西亚时区 + 获取当前时间
         tz = pytz.timezone("Asia/Kuala_Lumpur")
