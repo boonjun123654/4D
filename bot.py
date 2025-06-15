@@ -356,19 +356,19 @@ async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_
     try:
         if USE_PG:
             c.execute("""
-                SELECT bet_date, number, COUNT(*) 
+                SELECT bet_date, number, market, COUNT(*) 
                 FROM bets 
                 WHERE group_id = %s 
-                GROUP BY bet_date, number 
+                GROUP BY bet_date, number, market
                 HAVING COUNT(*) > 1 
                 ORDER BY bet_date DESC
             """, (group_id,))
         else:
             c.execute("""
-                SELECT bet_date, number, COUNT(*) 
+                SELECT bet_date, number, market, COUNT(*) 
                 FROM bets 
                 WHERE group_id = ? 
-                GROUP BY bet_date, number 
+                GROUP BY bet_date, number, market
                 HAVING COUNT(*) > 1 
                 ORDER BY bet_date DESC
             """, (group_id,))
