@@ -79,6 +79,7 @@ async def handle_personal_menu(update: Update, context: ContextTypes.DEFAULT_TYP
 async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     clear_old_results(context.bot_data)
     user_id = update.effective_user.id
+    print(f"收到输入: {update.message.text}")
 
     if user_id != ALLOWED_ADMIN_ID:
         await update.message.reply_text("❌ 你没有权限输入中奖成绩。")
