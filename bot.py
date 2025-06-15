@@ -358,7 +358,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     now = datetime.now(tz)
 
     # 提取下注的日期（格式为 DD/MM）
-    bet_date = datetime.strptime(bets[0]["date"], "%d/%m").replace(year=now.year).date()
+    bet_date = datetime.strptime(bets[0]["date"], "%Y-%m-%d").date()
 
     # 当前已锁定的日期：所有 <= 当前时间的 19:00 的日期，都视为锁定
     # 所以构造 today 的锁注时间点
