@@ -77,6 +77,7 @@ async def handle_personal_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text(f"你选择了 {market}。\n请输入今日的中奖成绩（以空格分隔）：\n\n例如：1234 5678 9012")
 
 async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    clear_old_results(context.bot_data)
     user_id = update.effective_user.id
 
     if user_id != ALLOWED_ADMIN_ID:
