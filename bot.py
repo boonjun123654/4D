@@ -354,34 +354,39 @@ async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_
     conn = get_conn()
     c = conn.cursor()
     try:
+        # 获取马来西亚当前日期
+        tz = pytz.timezone("Asia/Kuala_Lumpur")
+        today = datetime.now(tz).date()
+
         if USE_PG:
             c.execute("""
-                SELECT bet_date, number, market, COUNT(*) 
-                FROM bets 
-                WHERE group_id = %s 
+                SELECT bet_date, number, market, COUNT(*)
+                FROM bets
+                WHERE group_id = %s AND bet_date = %s
                 GROUP BY bet_date, number, market
-                HAVING COUNT(*) > 1 
+                HAVING COUNT(*) > 1
                 ORDER BY bet_date DESC
-            """, (group_id,))
+            """, (group_id, today))
         else:
             c.execute("""
-                SELECT bet_date, number, market, COUNT(*) 
-                FROM bets 
-                WHERE group_id = ? 
+                SELECT bet_date, number, market, COUNT(*)
+                FROM bets
+                WHERE group_id = ? AND bet_date = ?
                 GROUP BY bet_date, number, market
-                HAVING COUNT(*) > 1 
+                HAVING COUNT(*) > 1
                 ORDER BY bet_date DESC
-            """, (group_id,))
-        
+            """, (group_id, today))
+
         rows = c.fetchall()
         if not rows:
             await update.callback_query.answer("✅ 没有发现重复下注号码", show_alert=True)
         else:
             text = "⚠️ 重复下注号码如下：\n"
             for row in rows:
-                date, number, count = row
-                text += f"{date} - {number}（{count}次）\n"
+                date, number, market, count = row
+                text += f"{date} - {market} - {number}（{count}次）\n"
             await update.callback_query.message.reply_text(text)
+
     except Exception as e:
         logger.error(f"❌ 检查重复号码出错: {e}")
         await update.callback_query.answer("❌ 检查失败，请稍后再试", show_alert=True)
