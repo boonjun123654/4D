@@ -602,9 +602,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_personal_menu))
     app.add_handler(CallbackQueryHandler(handle_personal_menu, pattern="^input_result$"))
     app.add_handler(CallbackQueryHandler(handle_personal_menu, pattern="^result_market:"))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_result_input))
-
-
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND) & filters.ChatType.PRIVATE,handle_result_input))
 
     app.run_polling()
 
