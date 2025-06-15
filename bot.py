@@ -3,6 +3,7 @@ import os
 import logging
 import random
 import string
+import pytz
 import threading
 from db import USE_PG
 from db import init_db
@@ -323,6 +324,18 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer(
             text="⚠️ 未找到待确认的下注记录，请重新下注！",
             show_alert=True
+        )
+        return
+
+    tz = pytz.timezone("Asia/Kuala_Lumpur")
+    now = datetime.now(tz)
+    bet_date = datetime.strptime(bets[0]["date"], "%d/%m/%Y").date()
+    lock_time = datetime.combine(bet_date, time(19, 0))  # 19:00
+    lock_time = tz.localize(lock_time)
+
+    if bet_date == now.date() and now >= lock_time:
+        await query.answer(
+            text="⛔ 今日已锁注（19:00 后不再接受下注）", show_alert=True
         )
         return
 
