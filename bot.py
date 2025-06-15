@@ -184,25 +184,52 @@ def get_bet_count_for_code(code, group_id):
 def delete_bets_by_code(code, group_id):
     conn = get_conn()
     c = conn.cursor()
-    try:   
+
+    try:
+        # 查询下注日期
         if USE_PG:
-            c.execute(
-                "DELETE FROM bets WHERE code=%s AND group_id=%s",
-                (code, group_id)
-            )
+            c.execute("SELECT bet_date FROM bets WHERE code=%s AND group_id=%s", (code, group_id))
         else:
-            c.execute(
-                "DELETE FROM bets WHERE code=? AND group_id=?",
-                (code, group_id)
-            )
+            c.execute("SELECT bet_date FROM bets WHERE code=? AND group_id=?", (code, group_id))
+
+        row = c.fetchone()
+        if not row:
+            return 0
+
+        from datetime import datetime, time
+        import pytz
+
+        bet_datetime = row[0]
+        if isinstance(bet_datetime, str):
+            bet_datetime = datetime.fromisoformat(bet_datetime)
+
+        bet_date = bet_datetime.date()
+
+        # 马来西亚时区 + 锁注时间
+        tz = pytz.timezone("Asia/Kuala_Lumpur")
+        now = datetime.now(tz)
+        lock_datetime = tz.localize(datetime.combine(bet_date, time(19, 0)))  # 晚上 7 点锁注
+
+        if now >= lock_datetime and now.date() == bet_date:
+            logger.warning("⛔ 尝试删除已锁注的下注单，拒绝删除。")
+            return 0
+
+        # 继续执行删除
+        if USE_PG:
+            c.execute("DELETE FROM bets WHERE code=%s AND group_id=%s", (code, group_id))
+        else:
+            c.execute("DELETE FROM bets WHERE code=? AND group_id=?", (code, group_id))
+
         deleted = c.rowcount
         conn.commit()
         return deleted
+
     except Exception as e:
         logger.error(f"❌ 删除下注失败: {e}")
         return 0
     finally:
         conn.close()
+
 
 async def show_history_date_buttons(query, context, group_id):
     today = datetime.now().date()
