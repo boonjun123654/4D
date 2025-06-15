@@ -162,46 +162,46 @@ def get_commission_summary(start_date, end_date, group_id):
 def get_recent_bet_codes(group_id=None):
     conn = get_conn()
     c = conn.cursor()
-
     try:
+        tz = pytz.timezone("Asia/Kuala_Lumpur")
+        now = datetime.now(tz)
+        today = now.date()
+
+        # 当前时间的锁注点（当天19:00）
+        lock_datetime_today = datetime.combine(today, time(19, 0)).astimezone(tz)
+
+        # 查询所有 code + bet_date
         if group_id:
             query = """
                 SELECT DISTINCT code, bet_date
                 FROM bets
                 WHERE group_id = %s
-                ORDER BY code, created_at DESC
+                ORDER BY code DESC, created_at DESC
             """
             c.execute(query, (group_id,))
         else:
             query = """
                 SELECT DISTINCT code, bet_date
                 FROM bets
-                ORDER BY code, created_at DESC
+                ORDER BY code DESC, created_at DESC
             """
             c.execute(query)
 
         rows = c.fetchall()
         conn.close()
 
-        # ✅ 马来西亚时间
-        tz = pytz.timezone("Asia/Kuala_Lumpur")
-        now = datetime.now(tz)
-
-        result = []
-
+        # 过滤出未锁注的 code
+        valid_codes = []
         for code, bet_datetime in rows:
-            # 确保 bet_datetime 是 datetime 类型
             if isinstance(bet_datetime, str):
                 bet_datetime = datetime.fromisoformat(bet_datetime)
-
             bet_date = bet_datetime.date()
-            lock_time = tz.localize(datetime.combine(bet_date, time(19, 0)))
+            lock_datetime = datetime.combine(bet_date, time(19, 0)).astimezone(tz)
 
-            # ✅ 只保留未锁注的下注 code
-            if now < lock_time:
-                result.append(code)
+            if now < lock_datetime:
+                valid_codes.append(code)
 
-        return result
+        return valid_codes
 
     except Exception as e:
         logger.error(f"❌ 读取下注 code 出错: {e}")
