@@ -1,6 +1,9 @@
 import os
 import psycopg2
 import sqlite3
+import logging
+
+logger = logging.getLogger(__name__)
 
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
