@@ -8,14 +8,14 @@ from typing import List, Dict
 STANDARD_ODDS = {
     # MKTS 市场（M, K, T, S）
     **{m: {"B": 2750, "S": 3850, "A": 726,   "C": 242} for m in ("M","K","T","S")},
-    # H/L 市场（H, L）
-    **{m: {"B": 3045, "S": 4095, "A": 740.25,"C": 246.75} for m in ("H","L")},
+    # H/E 市场（H, E）
+    **{m: {"B": 3045, "S": 4095, "A": 740.25,"C": 246.75} for m in ("H","E")},
 }
 
 # 代理抽水比例 :contentReference[oaicite:1]{index=1}
 COMMISSION_RATES = {
     "MKTS": 0.26,
-    "HL":   0.19,
+    "HE":   0.19,
 }
 
 def _combination_count(number: str) -> int:
@@ -28,7 +28,7 @@ def _combination_count(number: str) -> int:
 
 def _commission_rate_for_market(market: str) -> float:
     """返回单个 market 的抽水比例"""
-    return COMMISSION_RATES["MKTS"] if market in ("M","K","T","S") else COMMISSION_RATES["HL"]
+    return COMMISSION_RATES["MKTS"] if market in ("M","K","T","S") else COMMISSION_RATES["HE"]
 
 def calculate(bets: List[Dict]) -> Dict:
     """
@@ -72,8 +72,8 @@ def calculate(bets: List[Dict]) -> Dict:
         # 3. 单市场最大可赢（potential_per_market）
         if "H" in markets:
             odds_market = "H"
-        elif "L" in markets:
-            odds_market = "L"
+        elif "E" in markets:
+            odds_market = "E"
         else:
             odds_market = "M"
         std_odds = STANDARD_ODDS[odds_market][btype]
