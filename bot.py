@@ -356,11 +356,13 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     tz = pytz.timezone("Asia/Kuala_Lumpur")
     now = datetime.now(tz)
-    bet_date = datetime.strptime(bets[0]["date"], "%Y-%m-%d").date()
-    lock_time = datetime.combine(bet_date, time(19, 0))  # 19:00
-    lock_time = tz.localize(lock_time)
+    today = now.date()
 
-    if bet_date == now.date() and now >= lock_time:
+    # 将下注的日期字符串转为带年份的 date 对象
+    bet_date = datetime.strptime(bets[0]["date"], "%d/%m").replace(year=today.year).date()
+
+    # 若下注日是今天，且当前时间 >= 19:00，则禁止下注
+    if bet_date == today and now.time() >= time(19, 0):
         await query.answer(
             text="⛔ 今日已锁注（19:00 后不再接受下注）", show_alert=True
         )
