@@ -98,48 +98,35 @@ def get_bet_history(start_date, end_date, group_id):
     return data
 
 def get_commission_summary(start_date, end_date, group_id):
-    """
-    生成最近 7 天的佣金报表，其中 “总额” = 每条下注的 amount × market 个数
-    返回格式：
-    [
-      {"day": "10/06", "total_amount": 15.0, "total_commission": 3.9},
-      {"day": "11/06", "total_amount": 15.0, "total_commission": 3.9},
-      ...
-    ]
-    """
     conn = get_conn()
     c = conn.cursor()
 
     if USE_PG:
-        # Postgres: 用 string_to_array + cardinality 计算 market 数
+        # Postgres: 用 string_to_array + cardinality 计算 market 数量
         c.execute("""
             SELECT
-              TO_CHAR(bet_date, 'DD/MM') AS day,
-              SUM(amount * CARDINALITY(string_to_array(market, ',')))      AS total_amount,
-              SUM(commission)                                              AS total_commission
+                TO_CHAR(bet_date, 'DD/MM') AS day,
+                SUM(amount * CARDINALITY(string_to_array(market, ','))) AS total_amount,
+                SUM(commission) AS total_commission
             FROM bets
-            WHERE group_id  = %s
+            WHERE group_id = %s
               AND bet_date BETWEEN %s AND %s
             GROUP BY day
             ORDER BY day DESC
         """, (group_id, start_date, end_date))
-
     else:
-        # SQLite: 用 string 函数计算逗号数再 +1
+        # SQLite: 用字符串方法计算 market 数量
         c.execute("""
             SELECT
-              strftime('%d/%m', bet_date) AS day,
-              SUM(
-                amount
-                * (
-                    LENGTH(market)
-                    - LENGTH(REPLACE(market, ',', ''))
-                    + 1
-                  )
-              )                               AS total_amount,
-              SUM(commission)                  AS total_commission
+                strftime('%d/%m', bet_date) AS day,
+                SUM(
+                    amount * (
+                        LENGTH(market) - LENGTH(REPLACE(market, ',', '')) + 1
+                    )
+                ) AS total_amount,
+                SUM(commission) AS total_commission
             FROM bets
-            WHERE group_id  = ?
+            WHERE group_id = ?
               AND bet_date BETWEEN ? AND ?
             GROUP BY day
             ORDER BY day DESC
@@ -154,9 +141,9 @@ def get_commission_summary(start_date, end_date, group_id):
 
     return [
         {
-            "day":              r[0],
-            "total_amount":     float(r[1]),
-            "total_commission": float(r[2]),
+            "day": r[0],
+            "total_amount": float(r[1]),
+            "total_commission": float(r[2])
         }
         for r in rows
     ]
