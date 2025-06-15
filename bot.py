@@ -356,7 +356,7 @@ async def handle_confirm_bet(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     tz = pytz.timezone("Asia/Kuala_Lumpur")
     now = datetime.now(tz)
-    bet_date = datetime.strptime(bets[0]["date"], "%d/%m/%Y").date()
+    bet_date = datetime.strptime(bets[0]["date"], "%Y-%m-%d").date()
     lock_time = datetime.combine(bet_date, time(19, 0))  # 19:00
     lock_time = tz.localize(lock_time)
 
