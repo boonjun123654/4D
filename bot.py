@@ -86,7 +86,37 @@ async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if context.user_data.get("awaiting_result_input") and "result_market" in context.user_data:
         market = context.user_data["result_market"]
-        result_text = update.message.text.strip()
+        text = update.message.text.strip()
+        lines = text.splitlines()
+
+        result_data = {
+            "1st": "",
+            "2nd": "",
+            "3rd": "",
+            "special": [],
+            "consolation": []
+        }
+
+        for line in lines:
+            if line.lower().startswith("1st:"):
+                result_data["1st"] = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("2nd:"):
+                result_data["2nd"] = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("3rd:"):
+                result_data["3rd"] = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("special:"):
+                result_data["special"] = line.split(":", 1)[1].strip().split()
+            elif line.lower().startswith("consolation:"):
+                result_data["consolation"] = line.split(":", 1)[1].strip().split()
+
+        # 格式化为统一格式再保存
+        result_text = (
+            f"1st: {result_data['1st']}\n"
+            f"2nd: {result_data['2nd']}\n"
+            f"3rd: {result_data['3rd']}\n"
+            f"Special: {' '.join(result_data['special'])}\n"
+            f"Consolation: {' '.join(result_data['consolation'])}"
+        )
 
         # 保存逻辑（你可以改成存数据库或文件）
         today_str = datetime.now().strftime("%d/%m")
