@@ -363,7 +363,7 @@ async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_
                 SELECT bet_date, number, market, bet_type,COUNT(*)
                 FROM bets
                 WHERE group_id = %s AND bet_date = %s
-                GROUP BY bet_date, number, market
+                GROUP BY bet_date, number, market, bet_type
                 HAVING COUNT(*) > 1
                 ORDER BY bet_date DESC
             """, (group_id, today))
@@ -372,7 +372,7 @@ async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_
                 SELECT bet_date, number, market, bet_type,COUNT(*)
                 FROM bets
                 WHERE group_id = ? AND bet_date = ?
-                GROUP BY bet_date, number, market
+                GROUP BY bet_date, number, market, bet_type
                 HAVING COUNT(*) > 1
                 ORDER BY bet_date DESC
             """, (group_id, today))
