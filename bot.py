@@ -52,7 +52,6 @@ async def show_personal_menu(update, context):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("请选择操作：", reply_markup=reply_markup)
 
-@dp.callback_query_handler(lambda query: query.data.startswith("input_result") or query.data.startswith("result_market:"))
 async def handle_personal_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
