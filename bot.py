@@ -360,7 +360,7 @@ async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_
 
         if USE_PG:
             c.execute("""
-                SELECT bet_date, number, market, COUNT(*)
+                SELECT bet_date, number, market, bet_type,COUNT(*)
                 FROM bets
                 WHERE group_id = %s AND bet_date = %s
                 GROUP BY bet_date, number, market
@@ -369,7 +369,7 @@ async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_
             """, (group_id, today))
         else:
             c.execute("""
-                SELECT bet_date, number, market, COUNT(*)
+                SELECT bet_date, number, market, bet_type,COUNT(*)
                 FROM bets
                 WHERE group_id = ? AND bet_date = ?
                 GROUP BY bet_date, number, market
@@ -384,7 +384,7 @@ async def check_duplicate_numbers(update: Update, context: ContextTypes.DEFAULT_
             text = "⚠️ 重复下注号码如下：\n"
             for row in rows:
                 date, number, market, count = row
-                text += f"{date} - {market} - {number}（{count}次）\n"
+                text += f"{date} - {market} - {number} - {bet_type}（{count}次）\n"
             await update.callback_query.message.reply_text(text)
 
     except Exception as e:
