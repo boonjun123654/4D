@@ -184,7 +184,6 @@ def get_bet_count_for_code(code, group_id):
 def delete_bets_by_code(code, group_id):
     conn = get_conn()
     c = conn.cursor()
-
     try:
         # 查询下注日期
         if USE_PG:
@@ -205,16 +204,17 @@ def delete_bets_by_code(code, group_id):
 
         bet_date = bet_datetime.date()
 
-        # 马来西亚时区 + 锁注时间
+        # 马来西亚时区 + 获取当前时间
         tz = pytz.timezone("Asia/Kuala_Lumpur")
         now = datetime.now(tz)
         lock_datetime = tz.localize(datetime.combine(bet_date, time(19, 0)))  # 晚上 7 点锁注
 
-        if now >= lock_datetime and now.date() == bet_date:
-            logger.warning("⛔ 尝试删除已锁注的下注单，拒绝删除。")
+        # ✅ 只要现在超过下注当晚 7 点，就禁止删除
+        if now >= lock_datetime:
+            logger.warning("🔒 尝试删除已锁注的下注单，拒绝删除。")
             return 0
 
-        # 继续执行删除
+        # 正常删除
         if USE_PG:
             c.execute("DELETE FROM bets WHERE code=%s AND group_id=%s", (code, group_id))
         else:
@@ -229,7 +229,6 @@ def delete_bets_by_code(code, group_id):
         return 0
     finally:
         conn.close()
-
 
 async def show_history_date_buttons(query, context, group_id):
     today = datetime.now().date()
