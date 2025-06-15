@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Dict
 
 # 支持的 market code
-VALID_MARKETS = {"M", "K", "T", "S", "H", "L"}
+VALID_MARKETS = {"M", "K", "T", "S", "H", "E"}
 
 def parse_bet_text(text: str, default_year: int = 2025) -> List[Dict]:
     """
