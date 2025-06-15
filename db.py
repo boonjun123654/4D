@@ -3,7 +3,7 @@ import psycopg2
 import sqlite3
 import logging
 import pytz
-from datetime import date
+from datetime import date, timedelta, datetime,time
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +199,7 @@ def get_recent_bet_codes(group_id=None):
         for code, bet_datetime, created_at in rows:
             if isinstance(bet_datetime, str):
                 bet_datetime = datetime.fromisoformat(bet_datetime)
-            bet_date = bet_datetime.date()
+            bet_date = bet_datetime
             lock_datetime = datetime.combine(bet_date, time(19, 0)).astimezone(tz)
 
             # 如果当前时间早于该注单的锁定时间 → 可显示
