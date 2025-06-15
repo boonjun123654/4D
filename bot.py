@@ -595,6 +595,7 @@ def main():
     app = ApplicationBuilder().token(token).build()
 
     # Handlers
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND) & filters.ChatType.PRIVATE,handle_result_input))
     app.add_handler( MessageHandler( filters.TEXT & ~filters.Regex(r'^/'), handle_bet_text)) 
     app.add_handler(CallbackQueryHandler(handle_confirm_bet, pattern="^confirm_bet$"))
     app.add_handler(CallbackQueryHandler(handle_task_buttons, pattern="^task:|^history_day:|^delete_code:|^confirm_delete:|^commission:|^delete_page:"))
@@ -603,8 +604,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_personal_menu))
     app.add_handler(CallbackQueryHandler(handle_personal_menu, pattern="^input_result$"))
     app.add_handler(CallbackQueryHandler(handle_personal_menu, pattern="^result_market:"))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND) & filters.ChatType.PRIVATE,handle_result_input))
-
+    
     app.run_polling()
 
 if __name__ == '__main__':
