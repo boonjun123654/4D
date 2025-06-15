@@ -124,16 +124,21 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def show_delete_code_page(query, context, group_id):
-    # 获取所有下注 code
-    all_codes = get_recent_bet_codes(group_id=group_id)
-    unique_codes = list(dict.fromkeys(all_codes))  # 保持顺序去重
-    total_codes = len(unique_codes)
+    # ✅ 获取未被锁注的 code（内部已判断 19:00 锁注）
+    all_codes = get_recent_bet_codes(group_id=group_id)  # 只会返回未锁定的
 
+    if not all_codes:
+        await query.message.edit_text("⚠️ 没有可显示的下注 Code。")
+        return
+
+    # ✅ 不再需要去重，get_recent_bet_codes 已确保唯一且未锁定
+    total_codes = len(all_codes)
+
+    # 分页设置
+    PAGE_SIZE = 5
     page = context.user_data.get("delete_page", 0)
-    logger.info(f"调用分页函数，当前页码：{page}")
-
     offset = page * PAGE_SIZE
-    current_codes = unique_codes[offset: offset + PAGE_SIZE]
+    current_codes = all_codes[offset: offset + PAGE_SIZE]
 
     if not current_codes:
         await query.message.edit_text("⚠️ 没有可显示的下注 Code。")
@@ -148,15 +153,16 @@ async def show_delete_code_page(query, context, group_id):
     # 分页按钮
     buttons = []
     if page > 0:
-        buttons.append(InlineKeyboardButton("⬅ 上一页", callback_data=f"delete_page:{page-1}"))
+        buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"delete_page:{page-1}"))
     if offset + PAGE_SIZE < total_codes:
-        buttons.append(InlineKeyboardButton("➡ 下一页", callback_data=f"delete_page:{page+1}"))
+        buttons.append(InlineKeyboardButton("➡️ 下一页", callback_data=f"delete_page:{page+1}"))
     if buttons:
         keyboard.append(buttons)
 
     # 发送消息
     await query.message.edit_text(
-        f"🗑 请选择要删除的下注 Code：\n\n📄 正在显示第 {page + 1} 页 / 共 {(total_codes + PAGE_SIZE - 1) // PAGE_SIZE} 页",
+        f"🗑️ 请选择要删除的下注 Code：\n\n"
+        f"✅ 正在显示第 {page + 1} 页 / 共 {(total_codes + PAGE_SIZE - 1) // PAGE_SIZE} 页",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
