@@ -63,6 +63,17 @@ def init_db():
     conn.commit()
     conn.close()
 
+def clear_old_results(bot_data):
+    tz = pytz.timezone("Asia/Kuala_Lumpur")
+    now = datetime.now(tz)
+
+    # 如果当前时间晚于 19:00，则清除前一天数据
+    if now.hour >= 19:
+        yesterday = (now - timedelta(days=1)).strftime("%d/%m")
+        if "daily_results" in bot_data and yesterday in bot_data["daily_results"]:
+            del bot_data["daily_results"][yesterday]
+            print(f"✅ 清除了 {yesterday} 的中奖记录")
+
 def get_bet_history(start_date, end_date, group_id):
     conn = get_conn()
     c = conn.cursor()
