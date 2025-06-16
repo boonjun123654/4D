@@ -6,7 +6,7 @@ import string
 import pytz
 import threading
 from utils import check_group_winning
-from db import clear_old_results,get_locked_bets_for_date
+from db import get_locked_bets_for_date
 from db import USE_PG,save_result_to_db,get_result_by_date
 from db import init_db
 init_db()
@@ -79,7 +79,6 @@ async def handle_personal_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text(f"你选择了 {market}。\n请输入今日的中奖成绩（以空格分隔）：\n\n例如：1234 5678 9012")
 
 async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    clear_old_results(context.bot_data)
     user_id = update.effective_user.id
     print(f"收到输入: {update.message.text}")
 
