@@ -97,6 +97,7 @@ def init_db():
     conn.close()
 
 def get_locked_bets_for_date(group_id, date_str):
+    conn = get_conn()
     with conn:
         cur = conn.execute("""
             SELECT number, market, bet_type, amount
