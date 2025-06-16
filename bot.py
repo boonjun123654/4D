@@ -5,6 +5,7 @@ import random
 import string
 import pytz
 import threading
+from utils import check_group_winning
 from db import clear_old_results
 from db import USE_PG
 from db import init_db
@@ -133,12 +134,30 @@ async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await update.message.reply_text("⚠️ 当前没有等待输入的成绩，或 Market 未设置。")
 
+async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    date_str = datetime.now(tz).strftime("%d/%m")
+
+    if "daily_results" not in context.bot_data:
+        await context.bot.send_message(chat_id=chat_id, text="❌ 今日还未记录任何中奖成绩。")
+        return
+
+    winnings = check_group_winning(chat_id, context.bot_data["daily_results"], date_str)
+    if not winnings:
+        await context.bot.send_message(chat_id=chat_id, text="📢 今日无人中奖。")
+    else:
+        text = "🎉 今日中奖结果：\n\n"
+        for item in winnings:
+            text += f"✅ {item['number']} 中 {item['prize_type']}，赢得 RM{item['amount']:.2f}\n"
+        await context.bot.send_message(chat_id=chat_id, text=text)
+
 async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📜 历史记录", callback_data="task:history")],
         [InlineKeyboardButton("💰 佣金报表", callback_data="task:commission")],
         [InlineKeyboardButton("🗑️ 删除下注", callback_data="task:delete")],
-        [InlineKeyboardButton("🧾 查看重复", callback_data="task:check_duplicates")]
+        [InlineKeyboardButton("🧾 查看重复", callback_data="task:check_duplicates")],
+        [InlineKeyboardButton("📢 查看中奖", callback_data="task:check_winning")]
     ])
     await update.message.reply_text("📌 请选择任务操作：", reply_markup=keyboard)
 
@@ -211,6 +230,12 @@ async def handle_task_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
             text=f"⚠️ 你确定要删除 Code:{code} 的单吗？",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
+
+    elif query.data == "task:check_winning":
+        if update.effective_chat.type == "private":
+            await query.answer("❌ 请在群组中使用此功能", show_alert=True)
+            return
+        await handle_check_winning(update, context)
 
     elif query.data == "task:check_duplicates":
         await check_duplicate_numbers(update, context, group_id)
