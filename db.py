@@ -105,7 +105,15 @@ def get_locked_bets_for_date(group_id, date_str):
             FROM bets
             WHERE group_id = %s AND bet_date = %s
         """, (group_id, date_str))
-        return [Bet(*row) for row in cur.fetchall()]
+        return [
+            {
+                "number": row[0],
+                "market": row[1],
+                "bet_type": row[2],
+                "amount": row[3],
+            }
+            for row in cur.fetchall()
+        ]
 
 def get_bet_history(start_date, end_date, group_id):
     conn = get_conn()
