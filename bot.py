@@ -6,7 +6,7 @@ import string
 import pytz
 import threading
 from utils import check_group_winning
-from db import clear_old_results,get_locked_bets
+from db import clear_old_results,get_locked_bets_for_date
 from db import USE_PG
 from db import init_db
 init_db()
