@@ -7,7 +7,7 @@ import pytz
 import threading
 from utils import check_group_winning
 from db import clear_old_results,get_locked_bets_for_date
-from db import USE_PG,save_result_to_db
+from db import USE_PG,save_result_to_db,get_result_by_date
 from db import init_db
 init_db()
 from collections import OrderedDict
@@ -143,9 +143,8 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
 
     group_id = update.effective_chat.id
     today_str = datetime.now().strftime("%d/%m")
-    daily_results = context.bot_data.get("daily_results", {})
-
-    results = daily_results.get((today_str, "K"))  # 你可以动态传入 market，目前暂设为 K
+    
+    results = get_result_by_date(today_str, "K")
     if not results:
         await update.callback_query.message.reply_text("⚠️ 今日尚未记录中奖号码。")
         return
