@@ -9,6 +9,14 @@ logger = logging.getLogger(__name__)
 
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
+def get_result_by_date(bet_date, market):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT result_text FROM results WHERE bet_date = %s AND market = %s", (bet_date, market))
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row else None
+
 def save_result_to_db(bet_date, market, result_text):
     conn = get_conn()
     cur = conn.cursor()
@@ -87,17 +95,6 @@ def init_db():
 
     conn.commit()
     conn.close()
-
-def clear_old_results(bot_data):
-    tz = pytz.timezone("Asia/Kuala_Lumpur")
-    now = datetime.now(tz)
-
-    # 如果当前时间晚于 19:00，则清除前一天数据
-    if now.hour >= 19:
-        yesterday = (now - timedelta(days=1)).strftime("%d/%m")
-        if "daily_results" in bot_data and yesterday in bot_data["daily_results"]:
-            del bot_data["daily_results"][yesterday]
-            print(f"✅ 清除了 {yesterday} 的中奖记录")
 
 def get_locked_bets_for_date(group_id, date_str):
     with conn:
