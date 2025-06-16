@@ -166,7 +166,7 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
             prizes["consolation"] = val.strip().split()
 
     # 获取锁注下注记录
-    bets = get_locked_bets(group_id=group_id, date=today_str)
+    bets = get_locked_bets_for_date(group_id=group_id, date=today_str)
     if not bets:
         await update.message.reply_text("📭 今日无下注记录。")
         return
