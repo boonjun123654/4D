@@ -9,6 +9,25 @@ logger = logging.getLogger(__name__)
 
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
+CREATE TABLE IF NOT EXISTS results (
+    bet_date TEXT,
+    market TEXT,
+    result_text TEXT,
+    PRIMARY KEY (bet_date, market)
+);
+
+def save_result_to_db(bet_date, market, result_text):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO results (bet_date, market, result_text)
+        VALUES (?, ?, ?)
+        ON CONFLICT(bet_date, market) DO UPDATE SET result_text = excluded.result_text
+    """, (bet_date, market, result_text))
+    conn.commit()
+    conn.close()
+
+
 # ✅ 统一获取连接函数
 def get_conn():
     if USE_PG:
