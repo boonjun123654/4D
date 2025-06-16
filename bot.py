@@ -121,7 +121,7 @@ async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
         # 保存逻辑（你可以改成存数据库或文件）
-        today_str = datetime.now().strftime("%d/%m")
+        today_str = datetime.now().strftime("%Y-%m-%d")
         save_result_to_db(today_str, market, result_text)
 
         # 清理状态
