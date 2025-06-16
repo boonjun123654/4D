@@ -26,7 +26,7 @@ def save_result_to_db(bet_date, market, result_text):
     # ✅ 插入或更新数据
     cur.execute("""
         INSERT INTO results (bet_date, market, result_text)
-        VALUES (?, ?, ?)
+        VALUES (%s, %s, %s)
         ON CONFLICT(bet_date, market) DO UPDATE SET result_text = excluded.result_text
     """, (bet_date, market, result_text))
 
