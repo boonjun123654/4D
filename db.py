@@ -74,6 +74,15 @@ def clear_old_results(bot_data):
             del bot_data["daily_results"][yesterday]
             print(f"✅ 清除了 {yesterday} 的中奖记录")
 
+def get_locked_bets_for_date(group_id, date_str):
+    with conn:
+        cur = conn.execute("""
+            SELECT number, market, bet_type, amount
+            FROM bets
+            WHERE group_id = ? AND bet_date = ? AND is_locked = 1
+        """, (group_id, date_str))
+        return [Bet(*row) for row in cur.fetchall()]
+
 def get_bet_history(start_date, end_date, group_id):
     conn = get_conn()
     c = conn.cursor()
