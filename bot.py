@@ -135,6 +135,9 @@ async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("⚠️ 当前没有等待输入的成绩，或 Market 未设置。")
 
 async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
     if update.effective_chat.type == "private":
         await update.message.reply_text("⚠️ 此功能仅限群组中使用。")
         return
@@ -145,7 +148,7 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
 
     results = daily_results.get((today_str, "K"))  # 你可以动态传入 market，目前暂设为 K
     if not results:
-        await update.message.reply_text("⚠️ 今日尚未记录中奖号码。")
+        await update.callback_query.message.reply_text("⚠️ 今日尚未记录中奖号码。")
         return
 
     # 拆解中奖号码
