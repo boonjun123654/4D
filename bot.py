@@ -6,7 +6,7 @@ import string
 import pytz
 import threading
 from utils import check_group_winning
-from db import clear_old_results
+from db import clear_old_results,get_locked_bets
 from db import USE_PG
 from db import init_db
 init_db()
@@ -25,7 +25,7 @@ from telegram.ext import (
     filters
 )
 from parser import parse_bet_text
-from engine import calculate
+from engine import calculate,STANDARD_ODDS
 from db import (
     get_conn,
     get_commission_summary,
@@ -135,21 +135,63 @@ async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("⚠️ 当前没有等待输入的成绩，或 Market 未设置。")
 
 async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    date_str = datetime.now(tz).strftime("%d/%m")
-
-    if "daily_results" not in context.bot_data:
-        await context.bot.send_message(chat_id=chat_id, text="❌ 今日还未记录任何中奖成绩。")
+    if update.effective_chat.type == "private":
+        await update.message.reply_text("⚠️ 此功能仅限群组中使用。")
         return
 
-    winnings = check_group_winning(chat_id, context.bot_data["daily_results"], date_str)
-    if not winnings:
-        await context.bot.send_message(chat_id=chat_id, text="📢 今日无人中奖。")
+    group_id = update.effective_chat.id
+    today_str = datetime.now().strftime("%d/%m")
+    daily_results = context.bot_data.get("daily_results", {})
+
+    results = daily_results.get((today_str, "K"))  # 你可以动态传入 market，目前暂设为 K
+    if not results:
+        await update.message.reply_text("⚠️ 今日尚未记录中奖号码。")
+        return
+
+    # 拆解中奖号码
+    prize_lines = results.splitlines()
+    prizes = {"1st": [], "2nd": [], "3rd": [], "special": [], "consolation": []}
+    for line in prize_lines:
+        if ":" not in line:
+            continue
+        key, val = line.split(":", 1)
+        if key.lower() in ("1st", "2nd", "3rd"):
+            prizes[key.lower()].append(val.strip())
+        elif key.lower() == "special":
+            prizes["special"] = val.strip().split()
+        elif key.lower() == "consolation":
+            prizes["consolation"] = val.strip().split()
+
+    # 获取锁注下注记录
+    bets = get_locked_bets(group_id=group_id, date=today_str)
+    if not bets:
+        await update.message.reply_text("📭 今日无下注记录。")
+        return
+
+    winnings = []
+    for bet in bets:
+        number = bet["number"]
+        bet_type = bet["bet_type"]
+        market = bet["market"]
+        amount = bet["amount"]
+
+        odds = STANDARD_ODDS.get(market, {})
+        matched = None
+
+        for prize_type in ["1st", "2nd", "3rd", "special", "consolation"]:
+            if number in prizes[prize_type]:
+                matched = prize_type
+                break
+
+        if matched and bet_type in odds:
+            payout = round(odds[bet_type] * amount, 2)
+            winnings.append(f"✅ {number} 中 {matched.upper()}，赢得 RM{payout:.2f}")
+
+    if winnings:
+        result_text = "\n".join(winnings)
+        await update.message.reply_text(f"🎉 今日中奖结果：\n{result_text}")
     else:
-        text = "🎉 今日中奖结果：\n\n"
-        for item in winnings:
-            text += f"✅ {item['number']} 中 {item['prize_type']}，赢得 RM{item['amount']:.2f}\n"
-        await context.bot.send_message(chat_id=chat_id, text=text)
+        await update.message.reply_text("😢 今日暂无中奖记录。")
 
 async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
