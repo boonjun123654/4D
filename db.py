@@ -103,7 +103,7 @@ def get_locked_bets_for_date(group_id, date_str):
         cur.execute("""
             SELECT number, market, bet_type, amount
             FROM bets
-            WHERE group_id = ? AND bet_date = ? AND is_locked = 1
+            WHERE group_id = %s AND bet_date = %s AND is_locked = 1
         """, (group_id, date_str))
         return [Bet(*row) for row in cur.fetchall()]
 
