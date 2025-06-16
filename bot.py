@@ -7,7 +7,7 @@ import pytz
 import threading
 from utils import check_group_winning
 from db import clear_old_results,get_locked_bets_for_date
-from db import USE_PG
+from db import USE_PG,save_result_to_db
 from db import init_db
 init_db()
 from collections import OrderedDict
@@ -123,8 +123,7 @@ async def handle_result_input(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         # 保存逻辑（你可以改成存数据库或文件）
         today_str = datetime.now().strftime("%d/%m")
-        context.bot_data.setdefault("daily_results", {})  # 初始化
-        context.bot_data["daily_results"][(today_str, market)] = result_text
+        save_result_to_db(today_str, market, result_text)
 
         # 清理状态
         context.user_data.pop("awaiting_result_input", None)
