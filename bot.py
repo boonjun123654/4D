@@ -141,7 +141,7 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     group_id = update.effective_chat.id
-    today_str = datetime.now().strftime("%d/%m")
+    today_str = datetime.now().strftime("%Y-%m-%d")
     
     results = get_result_by_date(today_str, "K")
     if not results:
