@@ -154,48 +154,48 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.callback_query.message.reply_text("⚠️ 今日尚未记录任何 market 的中奖号码。")
         return
 
-winnings = []
-for bet in bets:
-    number = bet["number"]
-    bet_type = bet["bet_type"]
-    market = bet["market"]
-    amount = bet["amount"]
+    winnings = []
+    for bet in bets:
+        number = bet["number"]
+        bet_type = bet["bet_type"]
+        market = bet["market"]
+        amount = bet["amount"]
 
-    if market not in market_results:
-        continue  # 跳过未记录中奖号码的 market
+        if market not in market_results:
+            continue  # 跳过未记录中奖号码的 market
 
-    result_text = market_results[market]
-    prize_lines = result_text.splitlines()
-    prizes = {"1st": [], "2nd": [], "3rd": [], "special": [], "consolation": []}
+        result_text = market_results[market]
+        prize_lines = result_text.splitlines()
+        prizes = {"1st": [], "2nd": [], "3rd": [], "special": [], "consolation": []}
 
-    for line in prize_lines:
-        if ":" not in line:
-            continue
-        key, val = line.split(":", 1)
-        key = key.strip().lower()
-        val = val.strip()
-        if key in prizes:
-            if key in ["1st", "2nd", "3rd"]:
-                prizes[key].append(val)
-            else:
-                prizes[key] = val.split()
+        for line in prize_lines:
+            if ":" not in line:
+                continue
+            key, val = line.split(":", 1)
+            key = key.strip().lower()
+            val = val.strip()
+            if key in prizes:
+                if key in ["1st", "2nd", "3rd"]:
+                    prizes[key].append(val)
+                else:
+                    prizes[key] = val.split()
 
-    matched = None
-    for prize_type in ["1st", "2nd", "3rd", "special", "consolation"]:
-        if number in prizes[prize_type]:
-            matched = prize_type
-            break
+        matched = None
+        for prize_type in ["1st", "2nd", "3rd", "special", "consolation"]:
+            if number in prizes[prize_type]:
+                matched = prize_type
+                break
 
-    if matched and bet_type in STANDARD_ODDS.get(market, {}):
-        payout = round(STANDARD_ODDS[market][bet_type] * amount, 2)
-        winnings.append(f"✅ {number} 中 {matched.upper()}，赢得 RM{payout:.2f}")
+        if matched and bet_type in STANDARD_ODDS.get(market, {}):
+            payout = round(STANDARD_ODDS[market][bet_type] * amount, 2)
+            winnings.append(f"✅ {number} 中 {matched.upper()}，赢得 RM{payout:.2f}")
 
-    if winnings:
-        result_text = "\n".join(winnings)
-        query = update.callback_query
-        await query.message.reply_text(f"🎉 今日中奖结果：\n{result_text}")
-    else:
-        await query.message.reply_text("😢 今日暂无中奖记录。")
+        if winnings:
+            result_text = "\n".join(winnings)
+            query = update.callback_query
+            await query.message.reply_text(f"🎉 今日中奖结果：\n{result_text}")
+        else:
+            await query.message.reply_text("😢 今日暂无中奖记录。")
 
 async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
