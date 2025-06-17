@@ -143,49 +143,52 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
     group_id = update.effective_chat.id
     today_str = datetime.now().strftime("%Y-%m-%d")
     
-    results = get_result_by_date(today_str, "K")
-    if not results:
-        await update.callback_query.message.reply_text("⚠️ 今日尚未记录中奖号码。")
+    market_results = {}
+    markets = set(bet["market"] for bet in get_locked_bets_for_date(group_id, today_str))
+    for m in markets:
+        result_text = get_result_by_date(today_str, m)
+        if result_text:
+            market_results[m] = result_text
+
+    if not market_results:
+        await update.callback_query.message.reply_text("⚠️ 今日尚未记录任何 market 的中奖号码。")
         return
 
-    # 拆解中奖号码
-    prize_lines = results.splitlines()
+winnings = []
+for bet in bets:
+    number = bet["number"]
+    bet_type = bet["bet_type"]
+    market = bet["market"]
+    amount = bet["amount"]
+
+    if market not in market_results:
+        continue  # 跳过未记录中奖号码的 market
+
+    result_text = market_results[market]
+    prize_lines = result_text.splitlines()
     prizes = {"1st": [], "2nd": [], "3rd": [], "special": [], "consolation": []}
+
     for line in prize_lines:
         if ":" not in line:
             continue
         key, val = line.split(":", 1)
-        if key.lower() in ("1st", "2nd", "3rd"):
-            prizes[key.lower()].append(val.strip())
-        elif key.lower() == "special":
-            prizes["special"] = val.strip().split()
-        elif key.lower() == "consolation":
-            prizes["consolation"] = val.strip().split()
+        key = key.strip().lower()
+        val = val.strip()
+        if key in prizes:
+            if key in ["1st", "2nd", "3rd"]:
+                prizes[key].append(val)
+            else:
+                prizes[key] = val.split()
 
-    # 获取锁注下注记录
-    bets = get_locked_bets_for_date(group_id, today_str)
-    if not bets:
-        await update.message.reply_text("📭 今日无下注记录。")
-        return
+    matched = None
+    for prize_type in ["1st", "2nd", "3rd", "special", "consolation"]:
+        if number in prizes[prize_type]:
+            matched = prize_type
+            break
 
-    winnings = []
-    for bet in bets:
-        number = bet["number"]
-        bet_type = bet["bet_type"]
-        market = bet["market"]
-        amount = bet["amount"]
-
-        odds = STANDARD_ODDS.get(market, {})
-        matched = None
-
-        for prize_type in ["1st", "2nd", "3rd", "special", "consolation"]:
-            if number in prizes[prize_type]:
-                matched = prize_type
-                break
-
-        if matched and bet_type in odds:
-            payout = round(odds[bet_type] * amount, 2)
-            winnings.append(f"✅ {number} 中 {matched.upper()}，赢得 RM{payout:.2f}")
+    if matched and bet_type in STANDARD_ODDS.get(market, {}):
+        payout = round(STANDARD_ODDS[market][bet_type] * amount, 2)
+        winnings.append(f"✅ {number} 中 {matched.upper()}，赢得 RM{payout:.2f}")
 
     if winnings:
         result_text = "\n".join(winnings)
