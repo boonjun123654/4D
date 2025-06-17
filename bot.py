@@ -142,6 +142,7 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
 
     group_id = update.effective_chat.id
     today_str = datetime.now().strftime("%Y-%m-%d")
+    bets = get_locked_bets_for_date(group_id, today_str)
     
     market_results = {}
     markets = set(bet["market"] for bet in get_locked_bets_for_date(group_id, today_str))
