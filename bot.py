@@ -191,12 +191,12 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
             payout = round(STANDARD_ODDS[market][bet_type] * amount, 2)
             winnings.append(f"✅ {number} 中 {matched.upper()}，赢得 RM{payout:.2f}")
 
-        if winnings:
-            result_text = "\n".join(winnings)
-            query = update.callback_query
-            await query.message.reply_text(f"🎉 今日中奖结果：\n{result_text}")
-        else:
-            await query.message.reply_text("😢 今日暂无中奖记录。")
+    if winnings:
+        result_text = "\n".join(winnings)
+        query = update.callback_query
+        await query.message.reply_text(f"🎉 今日中奖结果：\n{result_text}")
+    else:
+        await query.message.reply_text("😢 今日暂无中奖记录。")
 
 async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
