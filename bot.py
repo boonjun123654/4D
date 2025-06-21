@@ -145,7 +145,11 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
     bets = get_locked_bets_for_date(group_id, today_str)
     
     market_results = {}
-    markets = set(bet["market"] for bet in get_locked_bets_for_date(group_id, today_str))
+    markets = set()
+    for bet in get_locked_bets_for_date(group_id, today_str):
+        for m in bet["market"].split(","):
+            markets.add(m.strip())
+
     for m in markets:
         result_text = get_result_by_date(today_str, m)
         if result_text:
