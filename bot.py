@@ -163,7 +163,7 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
         amount = bet["amount"]
 
         if market not in market_results:
-            continue  # 跳过未记录中奖号码的 market
+            continue
 
         result_text = market_results[market]
         prize_lines = result_text.splitlines()
@@ -191,12 +191,13 @@ async def handle_check_winning(update: Update, context: ContextTypes.DEFAULT_TYP
             payout = round(STANDARD_ODDS[market][bet_type] * amount, 2)
             winnings.append(f"✅ {number} 中 {matched.upper()}，赢得 RM{payout:.2f}")
 
+    # ✅ 把这段统一判断放在循环之后！
     if winnings:
         result_text = "\n".join(winnings)
         query = update.callback_query
         await query.message.reply_text(f"🎉 今日中奖结果：\n{result_text}")
     else:
-        await query.message.reply_text("😢 今日暂无中奖记录。")
+        await query.message.reply_text("今日暂无中奖记录。")
 
 async def handle_task_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
