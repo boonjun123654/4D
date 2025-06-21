@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 USE_PG = bool(os.getenv("DATABASE_URL"))
 
 def get_result_by_date(bet_date, market):
+    print(f"查询开奖：日期={bet_date}，market={market}")
     conn = get_conn()
     cur = conn.cursor()
     cur.execute("SELECT result_text FROM results WHERE bet_date = %s AND market = %s", (bet_date, market))
